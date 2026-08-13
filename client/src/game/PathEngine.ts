@@ -1,5 +1,5 @@
-/** 星图档案馆设计：纯 TypeScript 路线规则；它是微信 Canvas 版本可直接复用的核心。 */
-import { starChartPuzzle } from "./puzzle";
+/** 林下探险手册设计：纯 TypeScript 路径规则；它是微信 Canvas 版本可直接复用的核心。 */
+import { forestTrailPuzzle } from "./puzzle";
 import {
   cellKey,
   directionBetween,
@@ -20,10 +20,10 @@ export class PathEngine {
   private nextWaypoint = 1;
   private startedAt: number | null = null;
   private completedAt: number | null = null;
-  private message = "从启明星开始，绘制一条完整航线。";
+  private message = "从林缘路标开始，把脚印留满整片林地。";
   private hintUntil = 0;
 
-  constructor(puzzle: PuzzleDefinition = starChartPuzzle) {
+  constructor(puzzle: PuzzleDefinition = forestTrailPuzzle) {
     this.puzzle = puzzle;
   }
 
@@ -56,14 +56,14 @@ export class PathEngine {
     if (this.path.length === 0) {
       const start = this.puzzle.waypoints[0];
       if (!sameCell(cell, start.cell)) {
-        this.setMessage(`请从 ${start.number} 号启明星开始。`);
+        this.setMessage(`请从 ${start.number} 号林缘路标开始。`);
         return false;
       }
       this.path = [{ ...cell }];
       this.status = "active";
       this.nextWaypoint = 2;
       this.startedAt = performance.now();
-      this.message = "起航已确认。沿网格寻找下一座信标。";
+      this.message = "第一枚脚印已落下。沿林径寻找下一枚路标。";
       this.emit();
       return true;
     }
@@ -72,7 +72,7 @@ export class PathEngine {
     const previous = this.path[this.path.length - 2];
     if (previous && sameCell(previous, cell)) {
       this.path.pop();
-      this.message = "已退回上一段航迹。";
+      this.message = "已踩回上一处脚印。";
       this.emit();
       return true;
     }
@@ -80,32 +80,32 @@ export class PathEngine {
     const direction = directionBetween(tail, cell);
     if (!direction) return false;
     if (this.isBlocked(tail, cell, direction)) {
-      this.setMessage("测绘墙阻断了这条航线。");
+      this.setMessage("倒木与灌木挡住了这条小径。");
       return false;
     }
     if (this.path.some((visited) => sameCell(visited, cell))) {
-      this.setMessage("航线不能重访已测绘的格点。");
+      this.setMessage("林径不能重踏已经走过的地面。");
       return false;
     }
 
     const waypoint = this.puzzle.waypoints.find((item) => sameCell(item.cell, cell));
     if (waypoint && waypoint.number !== this.nextWaypoint) {
-      this.setMessage(`应先经过 ${this.nextWaypoint} 号信标。`);
+      this.setMessage(`应先经过 ${this.nextWaypoint} 号路标。`);
       return false;
     }
 
     this.path.push({ ...cell });
     if (waypoint) {
       this.nextWaypoint += 1;
-      this.message = waypoint.number === this.puzzle.waypoints.length ? "最终信标已抵达，正在校验星图。" : `${waypoint.number} 号信标已校准。`;
+      this.message = waypoint.number === this.puzzle.waypoints.length ? "最后一枚路标已抵达，正在确认整条林径。" : `${waypoint.number} 号路标已找到。`;
     } else {
-      this.message = "航迹稳定。";
+      this.message = "脚步平稳，继续向前。";
     }
 
     if (this.path.length === this.puzzle.size * this.puzzle.size && this.nextWaypoint > this.puzzle.waypoints.length) {
       this.status = "completed";
       this.completedAt = performance.now();
-      this.message = "航图归档完成。整条星轨已校准。";
+      this.message = "林径走通。整片林地已留下完整脚印。";
     }
     this.emit();
     return true;
@@ -113,7 +113,7 @@ export class PathEngine {
 
   undo(): void {
     if (this.status === "completed") {
-      this.setMessage("航图已归档；请重置以绘制新的航线。\n");
+      this.setMessage("这条林径已经走通；请重置后重新入林。");
       return;
     }
     if (this.path.length === 0) return;
@@ -122,9 +122,9 @@ export class PathEngine {
     if (this.path.length === 0) {
       this.status = "idle";
       this.startedAt = null;
-      this.message = "航线已撤回。请重新从启明星出发。";
+      this.message = "脚印已抹平。请重新从林缘路标出发。";
     } else {
-      this.message = "已撤回最后一格航迹。";
+      this.message = "已撤回最后一步脚印。";
     }
     this.emit();
   }
@@ -136,14 +136,14 @@ export class PathEngine {
     this.startedAt = null;
     this.completedAt = null;
     this.hintUntil = 0;
-    this.message = "航图已复位。请从启明星开始。";
+    this.message = "林地已复位。请从林缘路标开始。";
     this.emit();
   }
 
   showHint(): void {
     if (this.status === "completed") return;
     this.hintUntil = performance.now() + 1400;
-    this.message = "已投射接下来四个可测绘格点。";
+    this.message = "阳光穿过树叶，照亮了接下来的四步。";
     this.emit();
     window.setTimeout(() => this.emit(), 1420);
   }

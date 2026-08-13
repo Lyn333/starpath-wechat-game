@@ -1,4 +1,4 @@
-/** 星图档案馆设计：关卡是原创的蛇形航道，用于验证顺序信标与覆盖全格规则。 */
+/** 林下探险手册设计：关卡是原创蛇形林径，用于验证路标顺序与覆盖全格规则。 */
 import type { Cell, PuzzleDefinition, Wall } from "./types";
 
 function buildSerpentineSolution(size: number): Cell[] {
@@ -24,9 +24,9 @@ function buildSurveyWalls(size: number): Wall[] {
 
 const solution = buildSerpentineSolution(6);
 
-export const starChartPuzzle: PuzzleDefinition = {
-  id: "archive-01",
-  name: "北天航图 · 01",
+export const forestTrailPuzzle: PuzzleDefinition = {
+  id: "moss-grove-01",
+  name: "苔影林地 · 01",
   size: 6,
   solution,
   walls: buildSurveyWalls(6),

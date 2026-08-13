@@ -1,8 +1,8 @@
-# 星轨寻径：架构说明
+# 森林寻径：架构说明
 
 ## 总览
 
-> React 是画框；Babylon 是星图画布；`game/` 是不依赖框架的谜题规则。
+> React 是画框；Babylon 是林区路线图画布；`game/` 是不依赖框架的路径谜题规则。
 
 ```text
 client/src/
@@ -11,10 +11,10 @@ client/src/
 │   └── GameCanvas.tsx               # 引擎生命周期、尺寸、浏览器输入挂载
 └── game/
     ├── types.ts                     # 坐标、关卡与会话类型
-    ├── puzzle.ts                    # 原创关卡数据与演示路线
-    ├── PathEngine.ts                # 连续路径规则、状态机、撤销与通关判定
+    ├── puzzle.ts                    # 原创林间关卡与演示路线
+    ├── PathEngine.ts                # 连续林径规则、状态机、撤回与完成判定
     ├── InputAdapter.ts               # 屏幕坐标到格坐标的浏览器输入适配
-    ├── GameRenderer.ts               # Babylon 相机、网格、路径与 HUD 绘制
+    ├── GameRenderer.ts               # Babylon 相机、林地网格、脚印与 HUD 绘制
     └── scene.ts                     # createGameScene() 和 GameHandle
 ```
 
@@ -22,15 +22,15 @@ client/src/
 
 | 名称 | 关键字段 | 职责 |
 |---|---|---|
-| `Cell` | `row`, `col` | 表示唯一逻辑格坐标。 |
+| `Cell` | `row`, `col` | 表示唯一的林地坐标。 |
 | `PuzzleDefinition` | `size`, `waypoints`, `walls`, `solution` | 描述关卡静态规则与演示解法。 |
-| `PathEngine` | `path`, `nextWaypoint`, `status`, `startedAt` | 唯一负责可走性、顺序信标、撤销、重置和通关。 |
+| `PathEngine` | `path`, `nextWaypoint`, `status`, `startedAt` | 唯一负责可走性、路标顺序、撤回、重置和完成。 |
 | `InputAdapter` | `boardRect`, `engine` | 将浏览器指针事件翻译为 `PathEngine.moveTo(cell)`。 |
-| `GameRenderer` | `scene`, `engine`, `layout` | 负责把规则状态变成网格、光轨、读数和完成效果。 |
+| `GameRenderer` | `scene`, `engine`, `layout` | 负责把规则状态变成林地网格、琥珀林径、路标和读数。 |
 
 ## 状态机
 
-`idle → active → completed`，并允许从 `active` 回到 `idle`（重置），或在 `active` 内执行一次受约束的后退。`completed` 状态冻结新的路径输入，但仍支持重置。
+`idle → active → completed`，并允许从 `active` 回到 `idle`（重新入林），或在 `active` 内执行一次受约束的后退。`completed` 状态冻结新的路径输入，但仍支持重新入林。
 
 ## 微信小游戏迁移边界
 
@@ -40,7 +40,7 @@ client/src/
 
 | 资产 | 运行时角色 | 目标尺寸 |
 |---|---|---|
-| 星图背景 | 覆盖整个视口的低对比环境层 | 1920×1080px，`cover`。 |
-| 品牌星盘 | 顶部左侧的品牌锚点 | 52×52px。 |
-| 完成星尘 | 通关时沿路径出现的轻量叠层 | 620×350px，透明。 |
+| 林下背景 | 覆盖整个视口的低对比环境层 | 1920×1080px，`cover`。 |
+| 年轮图标 | 顶部左侧的品牌锚点 | 52×52px。 |
+| 完成叶影 | 通关时沿路线出现的轻量叠层 | 620×350px，透明。 |
 | 视觉目标图 | 非交互帮助面板的艺术参考图 | 1280×720px，`cover`。 |

@@ -1,4 +1,4 @@
-/** 星图档案馆设计：Babylon 负责可见的星图、信标和光轨；坐标与输入均按触摸屏比例自适应。 */
+/** 林下探险手册设计：Babylon 负责可见的林区路线图、路标和琥珀林径；坐标与输入均按触摸屏比例自适应。 */
 import { Color3, Color4, Vector3 } from "@babylonjs/core/Maths/math";
 import { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
@@ -16,7 +16,7 @@ import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { PathEngine } from "./PathEngine";
 import { sameCell, type Cell, type GameSnapshot, type Wall } from "./types";
 
-const BACKGROUND_URL = "/manus-storage/starpath-archive-background_326814c1.png";
+const BACKGROUND_URL = "/manus-storage/forestpath-background_666bf595.png";
 
 interface BoardLayout {
   width: number;
@@ -28,14 +28,17 @@ interface BoardLayout {
 }
 
 const palette = {
-  ivory: Color3.FromHexString("#F4E9D4"),
-  ivorySoft: Color3.FromHexString("#D8CEBC"),
-  indigo: Color3.FromHexString("#08152E"),
-  navy: Color3.FromHexString("#122747"),
-  brass: Color3.FromHexString("#C6A65C"),
-  brassDeep: Color3.FromHexString("#5C4826"),
-  teal: Color3.FromHexString("#57E5D0"),
-  tealSoft: Color3.FromHexString("#75F1DF"),
+  ivory: Color3.FromHexString("#F4EFD9"),
+  ivorySoft: Color3.FromHexString("#D8DEC8"),
+  forest: Color3.FromHexString("#0E241A"),
+  moss: Color3.FromHexString("#1D3B2A"),
+  mossLight: Color3.FromHexString("#356646"),
+  bark: Color3.FromHexString("#745438"),
+  barkDeep: Color3.FromHexString("#352719"),
+  amber: Color3.FromHexString("#E2AF52"),
+  amberLight: Color3.FromHexString("#F2CB7A"),
+  fern: Color3.FromHexString("#8DCB91"),
+  fernSoft: Color3.FromHexString("#C0E4AC"),
 };
 
 function material(scene: Scene, name: string, color: Color3, alpha = 1): StandardMaterial {
@@ -65,9 +68,9 @@ export class GameRenderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly engine: PathEngine,
   ) {
-    this.scene.clearColor = new Color4(0.02, 0.06, 0.15, 1);
-    this.background = new Layer("archive-paper", BACKGROUND_URL, scene, true);
-    this.camera = new FreeCamera("star-chart-camera", new Vector3(0, 0, -10), scene);
+    this.scene.clearColor = new Color4(0.055, 0.14, 0.1, 1);
+    this.background = new Layer("forest-field-notebook", BACKGROUND_URL, scene, true);
+    this.camera = new FreeCamera("forest-trail-camera", new Vector3(0, 0, -10), scene);
     this.camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
     this.snapshot = engine.getSnapshot();
     this.applyLayout();
@@ -127,10 +130,31 @@ export class GameRenderer {
   private rebuildStatic(): void {
     this.disposeStatic();
     const { size, cell } = this.layout;
+    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "forest-paper-veil", palette.forest, 0.82));
+    const notebookBackingMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-backing", palette.barkDeep, 0.9));
+    const binderMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-binder", palette.bark, 0.95));
     const gridMaterial = this.ownStaticMaterial(material(this.scene, "grid-lines", palette.ivorySoft, 0.31));
-    const cellMaterial = this.ownStaticMaterial(material(this.scene, "cell-paper", palette.navy, 0.35));
-    const frameMaterial = this.ownStaticMaterial(material(this.scene, "chart-frame", palette.brass, 0.82));
-    const wallMaterial = this.ownStaticMaterial(material(this.scene, "survey-wall", palette.brassDeep, 0.98));
+    const cellMaterial = this.ownStaticMaterial(material(this.scene, "moss-map-cell", palette.moss, 0.48));
+    const frameMaterial = this.ownStaticMaterial(material(this.scene, "wood-map-frame", palette.bark, 0.92));
+    const wallMaterial = this.ownStaticMaterial(material(this.scene, "fallen-log-wall", palette.barkDeep, 0.98));
+
+    // 用半透明林地纸面柔化全屏环境层，避免加载中的背景纹理干扰路线图可读性。
+    const forestVeil = CreateBox("forest-paper-veil", { width: this.layout.width + 20, height: this.layout.height + 20, depth: 1 }, this.scene);
+    forestVeil.position = this.toWorld({ x: this.layout.width / 2, y: this.layout.height / 2 }, 4.5);
+    forestVeil.material = forestVeilMaterial;
+    this.staticMeshes.push(forestVeil);
+
+    // 棋盘被一张深色皮革夹页托住，并以三个树皮铆钉表达野外手册的装订感。
+    const notebookBacking = CreateBox("field-notebook-backing", { width: size + 64, height: size + 68, depth: 1 }, this.scene);
+    notebookBacking.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 3.7);
+    notebookBacking.material = notebookBackingMaterial;
+    this.staticMeshes.push(notebookBacking);
+    [0, 1, 2].forEach((index) => {
+      const binder = CreateDisc(`notebook-binder-${index}`, { radius: 5.2, tessellation: 18 }, this.scene);
+      binder.position = this.toWorld({ x: this.layout.left - 25, y: this.layout.top + size * 0.28 + index * size * 0.22 }, 2.7);
+      binder.material = binderMaterial;
+      this.staticMeshes.push(binder);
+    });
 
     for (let row = 0; row < this.engine.puzzle.size; row += 1) {
       for (let col = 0; col < this.engine.puzzle.size; col += 1) {
@@ -154,13 +178,13 @@ export class GameRenderer {
       this.staticMeshes.push(horizontal);
     }
 
-    const frame = CreateBox("chart-frame", { width: size + 16, height: size + 16, depth: 1 }, this.scene);
+    const frame = CreateBox("wood-map-frame", { width: size + 16, height: size + 16, depth: 1 }, this.scene);
     frame.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.8);
     frame.material = frameMaterial;
     this.staticMeshes.push(frame);
-    const innerFrame = CreateBox("chart-frame-inner", { width: size + 6, height: size + 6, depth: 1.2 }, this.scene);
+    const innerFrame = CreateBox("moss-map-inner", { width: size + 6, height: size + 6, depth: 1.2 }, this.scene);
     innerFrame.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.5);
-    innerFrame.material = this.ownStaticMaterial(material(this.scene, "chart-frame-inner-material", palette.indigo, 1));
+    innerFrame.material = this.ownStaticMaterial(material(this.scene, "moss-map-inner-material", palette.forest, 1));
     this.staticMeshes.push(innerFrame);
 
     this.engine.puzzle.walls.forEach((wall, index) => {
@@ -178,22 +202,30 @@ export class GameRenderer {
 
   private createPath(): void {
     if (this.snapshot.path.length === 0) return;
-    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-star-route", palette.teal, 0.97));
+    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-forest-trail", palette.amber, 0.98));
     if (this.snapshot.path.length === 1) {
-      const disc = CreateDisc("route-origin", { radius: Math.max(6, this.layout.cell * 0.12), tessellation: 32 }, this.scene);
+      const disc = CreateDisc("trail-origin", { radius: Math.max(6, this.layout.cell * 0.12), tessellation: 32 }, this.scene);
       disc.position = this.toWorld(this.centerOf(this.snapshot.path[0]), -3.2);
       disc.material = routeMaterial;
       this.dynamicMeshes.push(disc);
       return;
     }
     const path = this.snapshot.path.map((cell) => this.toWorld(this.centerOf(cell), -3.2));
-    const tube = CreateTube("active-star-route", { path, radius: Math.max(5, this.layout.cell * 0.1), tessellation: 12, cap: 3 }, this.scene);
+    const tube = CreateTube("active-forest-trail", { path, radius: Math.max(5, this.layout.cell * 0.1), tessellation: 12, cap: 3 }, this.scene);
     tube.material = routeMaterial;
     this.dynamicMeshes.push(tube);
+    this.snapshot.path.slice(1).forEach((cell, index) => {
+      const footprint = CreateDisc(`footprint-${index}`, { radius: Math.max(3.4, this.layout.cell * 0.064), tessellation: 16 }, this.scene);
+      footprint.scaling.set(0.62, 1.32, 1);
+      footprint.rotation.z = index % 2 === 0 ? 0.34 : -0.34;
+      footprint.position = this.toWorld(this.centerOf(cell), -4.05);
+      footprint.material = this.ownDynamicMaterial(material(this.scene, `footprint-amber-${index}`, palette.amberLight, 0.88));
+      this.dynamicMeshes.push(footprint);
+    });
   }
 
   private createHintMarkers(): void {
-    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "projected-route", palette.tealSoft, 0.26));
+    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "sunlit-trail", palette.fernSoft, 0.32));
     this.snapshot.hintCells.forEach((cell, index) => {
       const disc = CreateDisc(`hint-${index}`, { radius: this.layout.cell * 0.18, tessellation: 24 }, this.scene);
       disc.position = this.toWorld(this.centerOf(cell), -2.6);
@@ -208,21 +240,36 @@ export class GameRenderer {
       const current = waypoint.number === this.snapshot.nextWaypoint;
       const outer = CreateDisc(`waypoint-outer-${waypoint.number}`, { radius: this.layout.cell * 0.29, tessellation: 36 }, this.scene);
       outer.position = this.toWorld(this.centerOf(waypoint.cell), -4);
-      outer.material = this.ownDynamicMaterial(material(this.scene, `waypoint-brass-${waypoint.number}`, passed ? palette.teal : palette.brass, 1));
+      outer.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-bark-${waypoint.number}`, passed ? palette.fern : palette.amber, 1));
       this.dynamicMeshes.push(outer);
 
+      const growthRing = CreateDisc(`waypoint-growth-ring-${waypoint.number}`, { radius: this.layout.cell * 0.235, tessellation: 36 }, this.scene);
+      growthRing.position = this.toWorld(this.centerOf(waypoint.cell), -4.08);
+      growthRing.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-growth-ring-${waypoint.number}`, palette.bark, 1));
+      this.dynamicMeshes.push(growthRing);
+
       const inner = CreateDisc(`waypoint-inner-${waypoint.number}`, { radius: this.layout.cell * 0.235, tessellation: 36 }, this.scene);
+      inner.scaling.set(0.72, 0.72, 1);
       inner.position = this.toWorld(this.centerOf(waypoint.cell), -4.15);
-      inner.material = this.ownDynamicMaterial(material(this.scene, `waypoint-core-${waypoint.number}`, current ? palette.tealSoft : palette.indigo, 1));
+      inner.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-core-${waypoint.number}`, current ? palette.fernSoft : palette.forest, 1));
       this.dynamicMeshes.push(inner);
+
+      [-0.72, 0, 0.72].forEach((angle, index) => {
+        const leaf = CreateDisc(`trail-marker-leaf-${waypoint.number}-${index}`, { radius: this.layout.cell * 0.065, tessellation: 18 }, this.scene);
+        leaf.scaling.set(0.55, 1.28, 1);
+        leaf.rotation.z = angle;
+        leaf.position = this.toWorld({ x: this.centerOf(waypoint.cell).x + Math.cos(angle - 1.2) * this.layout.cell * 0.31, y: this.centerOf(waypoint.cell).y + Math.sin(angle - 1.2) * this.layout.cell * 0.31 }, -3.92);
+        leaf.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-leaf-material-${waypoint.number}-${index}`, passed ? palette.fernSoft : palette.mossLight, 0.96));
+        this.dynamicMeshes.push(leaf);
+      });
 
       if (current && this.snapshot.status !== "completed") {
         const halo = CreateDisc(`waypoint-halo-${waypoint.number}`, { radius: this.layout.cell * 0.37, tessellation: 36 }, this.scene);
         halo.position = this.toWorld(this.centerOf(waypoint.cell), -3.85);
-        halo.material = this.ownDynamicMaterial(material(this.scene, `waypoint-halo-${waypoint.number}`, palette.teal, 0.16));
+        halo.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-halo-${waypoint.number}`, palette.fern, 0.18));
         this.dynamicMeshes.push(halo);
       }
-      this.createNumberLabel(waypoint.number, waypoint.cell, passed || current ? palette.indigo : palette.ivory);
+      this.createNumberLabel(waypoint.number, waypoint.cell, passed || current ? palette.forest : palette.ivory);
     });
   }
 
@@ -255,7 +302,12 @@ export class GameRenderer {
       this.scene,
     );
     mesh.position = this.toWorld({ x, y }, -1.8);
+    mesh.rotation.z = isHorizontal ? (index % 2 === 0 ? 0.035 : -0.035) : (index % 2 === 0 ? 0.035 : -0.035);
     mesh.material = wallMaterial;
+    const logCap = CreateDisc(`fallen-log-cap-${index}`, { radius: 5.1, tessellation: 16 }, this.scene);
+    logCap.position = this.toWorld({ x: x + (isHorizontal ? -cell * 0.33 : 0), y: y + (isHorizontal ? 0 : cell * 0.33) }, -2.1);
+    logCap.material = wallMaterial;
+    this.staticMeshes.push(logCap);
     return mesh;
   }
 
