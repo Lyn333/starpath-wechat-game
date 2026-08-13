@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786618555949,
+      "tag": "0000_tired_norrin_radd",
+      "breakpoints": true
+    }
+  ]
+}

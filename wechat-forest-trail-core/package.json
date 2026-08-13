@@ -1,0 +1,8 @@
+{
+  "name": "forestpath-wechat-minigame-core",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node test-engine.cjs"
+  }
+}
