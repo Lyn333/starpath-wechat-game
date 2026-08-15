@@ -5,12 +5,12 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+import type { ICanvasRenderingContext } from "@babylonjs/core/Engines/ICanvas";
 import "@babylonjs/core/Shaders/default.vertex";
 import "@babylonjs/core/Shaders/default.fragment";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
-import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
@@ -28,12 +28,9 @@ interface BoardLayout {
 
 const palette = {
   paper: Color3.FromHexString("#FFFFFF"),
-  paperSoft: Color3.FromHexString("#FAFAFA"),
-  grid: Color3.FromHexString("#D5D5D5"),
   graphite: Color3.FromHexString("#202020"),
   charcoal: Color3.FromHexString("#4A4A4A"),
   mcdYellow: Color3.FromHexString("#FFC72C"),
-  yellowLight: Color3.FromHexString("#FFD95A"),
   black: Color3.FromHexString("#111111"),
 };
 
@@ -50,6 +47,7 @@ export class GameRenderer {
   private readonly camera: FreeCamera;
   private readonly staticMeshes: AbstractMesh[] = [];
   private readonly staticMaterials: Material[] = [];
+  private readonly staticTextures: Texture[] = [];
   private readonly dynamicMeshes: AbstractMesh[] = [];
   private readonly dynamicMaterials: Material[] = [];
   private readonly dynamicTextures: Texture[] = [];
@@ -123,13 +121,8 @@ export class GameRenderer {
 
   private rebuildStatic(): void {
     this.disposeStatic();
-    const { size, cell } = this.layout;
+    const { size } = this.layout;
     const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "white-canvas-base", palette.paper, 1));
-    const notebookBackingMaterial = this.ownStaticMaterial(material(this.scene, "board-backing", palette.paper, 1));
-    const binderMaterial = this.ownStaticMaterial(material(this.scene, "board-accent", palette.mcdYellow, 1));
-    const gridMaterial = this.ownStaticMaterial(material(this.scene, "grid-lines", palette.grid, 1));
-    const cellMaterial = this.ownStaticMaterial(material(this.scene, "paper-map-cell", palette.paperSoft, 1));
-    const frameMaterial = this.ownStaticMaterial(material(this.scene, "graphite-map-frame", palette.graphite, 1));
     const wallMaterial = this.ownStaticMaterial(material(this.scene, "wall", palette.charcoal, 1));
 
     // 以白色画布作为棋盘和界面的统一底色。
@@ -138,48 +131,12 @@ export class GameRenderer {
     forestVeil.material = forestVeilMaterial;
     this.staticMeshes.push(forestVeil);
 
-    // 细黑框与三枚黄色点缀建立清晰的棋盘边界，不干扰数字阅读。
-    const notebookBacking = CreateBox("field-notebook-backing", { width: size + 64, height: size + 68, depth: 1 }, this.scene);
-    notebookBacking.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 3.7);
-    notebookBacking.material = notebookBackingMaterial;
-    this.staticMeshes.push(notebookBacking);
-    [0, 1, 2].forEach((index) => {
-      const binder = CreateDisc(`notebook-binder-${index}`, { radius: 5.2, tessellation: 18 }, this.scene);
-      binder.position = this.toWorld({ x: this.layout.left - 25, y: this.layout.top + size * 0.28 + index * size * 0.22 }, 2.7);
-      binder.material = binderMaterial;
-      this.staticMeshes.push(binder);
-    });
-
-    for (let row = 0; row < this.engine.puzzle.size; row += 1) {
-      for (let col = 0; col < this.engine.puzzle.size; col += 1) {
-        const mesh = CreateBox(`cell-${row}-${col}`, { width: cell - 3, height: cell - 3, depth: 1 }, this.scene);
-        mesh.position = this.toWorld(this.centerOf({ row, col }), 2);
-        mesh.material = cellMaterial;
-        this.staticMeshes.push(mesh);
-      }
-    }
-
-    for (let index = 0; index <= this.engine.puzzle.size; index += 1) {
-      const x = this.layout.left + index * cell;
-      const y = this.layout.top + index * cell;
-      const vertical = CreateBox(`vertical-${index}`, { width: 1.2, height: size, depth: 1 }, this.scene);
-      vertical.position = this.toWorld({ x, y: this.layout.top + size / 2 }, 0.4);
-      vertical.material = gridMaterial;
-      this.staticMeshes.push(vertical);
-      const horizontal = CreateBox(`horizontal-${index}`, { width: size, height: 1.2, depth: 1 }, this.scene);
-      horizontal.position = this.toWorld({ x: this.layout.left + size / 2, y }, 0.4);
-      horizontal.material = gridMaterial;
-      this.staticMeshes.push(horizontal);
-    }
-
-    const frame = CreateBox("wood-map-frame", { width: size + 16, height: size + 16, depth: 1 }, this.scene);
-    frame.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.8);
-    frame.material = frameMaterial;
-    this.staticMeshes.push(frame);
-    const innerFrame = CreateBox("moss-map-inner", { width: size + 6, height: size + 6, depth: 1.2 }, this.scene);
-    innerFrame.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.5);
-    innerFrame.material = this.ownStaticMaterial(material(this.scene, "paper-map-inner-material", palette.paper, 1));
-    this.staticMeshes.push(innerFrame);
+    const boardSurface = CreatePlane("rounded-grid-board", { size: 1 }, this.scene);
+    boardSurface.scaling.set(size + 20, size + 20, 1);
+    boardSurface.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.8);
+    boardSurface.renderingGroupId = 0;
+    boardSurface.material = this.createRoundedBoardMaterial();
+    this.staticMeshes.push(boardSurface);
 
     this.engine.puzzle.walls.forEach((wall, index) => {
       const mesh = this.createWall(wall, index, wallMaterial);
@@ -197,24 +154,34 @@ export class GameRenderer {
   private createPath(): void {
     if (this.snapshot.path.length === 0) return;
     const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-yellow-trail", palette.mcdYellow, 1));
+    const routeRadius = Math.max(9, this.layout.cell * 0.17);
+    const routeDepth = -3.7;
     if (this.snapshot.path.length === 1) {
-      const disc = CreateDisc("trail-origin", { radius: Math.max(6, this.layout.cell * 0.12), tessellation: 32 }, this.scene);
-      disc.position = this.toWorld(this.centerOf(this.snapshot.path[0]), -3.2);
+      const disc = CreateDisc("trail-origin", { radius: routeRadius, tessellation: 32 }, this.scene);
+      disc.position = this.toWorld(this.centerOf(this.snapshot.path[0]), routeDepth);
+      disc.renderingGroupId = 1;
       disc.material = routeMaterial;
       this.dynamicMeshes.push(disc);
       return;
     }
-    const path = this.snapshot.path.map((cell) => this.toWorld(this.centerOf(cell), -3.2));
-    const tube = CreateTube("active-forest-trail", { path, radius: Math.max(5, this.layout.cell * 0.1), tessellation: 12, cap: 3 }, this.scene);
-    tube.material = routeMaterial;
-    this.dynamicMeshes.push(tube);
-    this.snapshot.path.slice(1).forEach((cell, index) => {
-      const footprint = CreateDisc(`footprint-${index}`, { radius: Math.max(3.4, this.layout.cell * 0.064), tessellation: 16 }, this.scene);
-      footprint.scaling.set(0.62, 1.32, 1);
-      footprint.rotation.z = index % 2 === 0 ? 0.34 : -0.34;
-      footprint.position = this.toWorld(this.centerOf(cell), -4.05);
-      footprint.material = this.ownDynamicMaterial(material(this.scene, `footprint-yellow-${index}`, palette.yellowLight, 1));
-      this.dynamicMeshes.push(footprint);
+    const points = this.snapshot.path.map((cell) => this.toWorld(this.centerOf(cell), routeDepth));
+    points.forEach((point, index) => {
+      const joint = CreateDisc(`active-solid-joint-${index}`, { radius: routeRadius, tessellation: 32 }, this.scene);
+      joint.position = point;
+      joint.renderingGroupId = 1;
+      joint.material = routeMaterial;
+      this.dynamicMeshes.push(joint);
+    });
+    points.slice(1).forEach((point, index) => {
+      const previous = points[index];
+      const dx = point.x - previous.x;
+      const dy = point.y - previous.y;
+      const segment = CreateBox(`active-solid-segment-${index}`, { width: Math.hypot(dx, dy), height: routeRadius * 2, depth: 0.42 }, this.scene);
+      segment.position = new Vector3((point.x + previous.x) / 2, (point.y + previous.y) / 2, routeDepth);
+      segment.rotation.z = Math.atan2(dy, dx);
+      segment.renderingGroupId = 1;
+      segment.material = routeMaterial;
+      this.dynamicMeshes.push(segment);
     });
   }
 
@@ -223,6 +190,7 @@ export class GameRenderer {
     this.snapshot.hintCells.forEach((cell, index) => {
       const tile = CreateBox(`hint-${index}`, { width: this.layout.cell * 0.64, height: this.layout.cell * 0.64, depth: 0.35 }, this.scene);
       tile.position = this.toWorld(this.centerOf(cell), -3.55);
+      tile.renderingGroupId = 1;
       tile.material = hintMaterial;
       this.dynamicMeshes.push(tile);
     });
@@ -247,6 +215,7 @@ export class GameRenderer {
     const labelSize = this.layout.cell * 0.43;
     label.scaling.set(labelSize, labelSize, 1);
     label.position = this.toWorld(this.centerOf(cell), -4.4);
+    label.renderingGroupId = 2;
     label.material = labelMaterial;
     this.dynamicMeshes.push(label);
     this.dynamicTextures.push(texture);
@@ -259,17 +228,70 @@ export class GameRenderer {
     const y = this.layout.top + wall.cell.row * cell + cell / 2 + (wall.direction === "down" ? cell / 2 : wall.direction === "up" ? -cell / 2 : 0);
     const mesh = CreateBox(
       `wall-${index}`,
-      { width: isHorizontal ? cell * 0.8 : 7, height: isHorizontal ? 7 : cell * 0.8, depth: 2 },
+      { width: isHorizontal ? cell * 0.92 : 7, height: isHorizontal ? 7 : cell * 0.92, depth: 2 },
       this.scene,
     );
     mesh.position = this.toWorld({ x, y }, -1.8);
-    mesh.rotation.z = isHorizontal ? (index % 2 === 0 ? 0.035 : -0.035) : (index % 2 === 0 ? 0.035 : -0.035);
     mesh.material = wallMaterial;
-    const logCap = CreateDisc(`fallen-log-cap-${index}`, { radius: 5.1, tessellation: 16 }, this.scene);
-    logCap.position = this.toWorld({ x: x + (isHorizontal ? -cell * 0.33 : 0), y: y + (isHorizontal ? 0 : cell * 0.33) }, -2.1);
-    logCap.material = wallMaterial;
-    this.staticMeshes.push(logCap);
     return mesh;
+  }
+
+  private createRoundedBoardMaterial(): StandardMaterial {
+    const texture = this.ownStaticTexture(new DynamicTexture("rounded-grid-board-texture", { width: 1024, height: 1024 }, this.scene, false));
+    texture.hasAlpha = true;
+    const context = texture.getContext();
+    const padding = 30;
+    const boardSize = 1024 - padding * 2;
+    const radius = 34;
+
+    context.clearRect(0, 0, 1024, 1024);
+    this.drawRoundedRect(context, padding, padding, boardSize, boardSize, radius);
+    context.fillStyle = "#FFFFFF";
+    context.fill();
+    context.lineWidth = 7;
+    context.strokeStyle = "#E6E2D8";
+    context.stroke();
+
+    context.save();
+    this.drawRoundedRect(context, padding, padding, boardSize, boardSize, radius);
+    context.clip();
+    context.strokeStyle = "#DCDCDC";
+    context.lineWidth = 2;
+    for (let index = 1; index < this.engine.puzzle.size; index += 1) {
+      const offset = padding + (boardSize / this.engine.puzzle.size) * index;
+      context.beginPath();
+      context.moveTo(offset, padding);
+      context.lineTo(offset, padding + boardSize);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(padding, offset);
+      context.lineTo(padding + boardSize, offset);
+      context.stroke();
+    }
+    context.restore();
+    texture.update();
+
+    const output = this.ownStaticMaterial(new StandardMaterial("rounded-grid-board-material", this.scene));
+    output.disableLighting = true;
+    output.disableDepthWrite = true;
+    output.diffuseTexture = texture;
+    output.opacityTexture = texture;
+    output.emissiveColor = Color3.White();
+    return output;
+  }
+
+  private drawRoundedRect(context: ICanvasRenderingContext, x: number, y: number, width: number, height: number, radius: number): void {
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.lineTo(x + width - radius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + radius);
+    context.lineTo(x + width, y + height - radius);
+    context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    context.lineTo(x + radius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - radius);
+    context.lineTo(x, y + radius);
+    context.quadraticCurveTo(x, y, x + radius, y);
+    context.closePath();
   }
 
   private centerOf(cell: Cell): { x: number; y: number } {
@@ -285,6 +307,11 @@ export class GameRenderer {
     return value;
   }
 
+  private ownStaticTexture<T extends Texture>(value: T): T {
+    this.staticTextures.push(value);
+    return value;
+  }
+
   private ownDynamicMaterial<T extends Material>(value: T): T {
     this.dynamicMaterials.push(value);
     return value;
@@ -293,6 +320,7 @@ export class GameRenderer {
   private disposeStatic(): void {
     this.staticMeshes.splice(0).forEach((mesh) => mesh.dispose());
     this.staticMaterials.splice(0).forEach((item) => item.dispose());
+    this.staticTextures.splice(0).forEach((item) => item.dispose());
   }
 
   private disposeDynamic(): void {

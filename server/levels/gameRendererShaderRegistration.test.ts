@@ -15,11 +15,16 @@ describe("GameRenderer shader registration", () => {
     expect(rendererSource).not.toContain("new Layer(");
   });
 
-  it("uses a white board, McDonald's-style yellow path, and black numbers without marker rings", () => {
+  it("uses a rounded white grid board, a continuous yellow path, and black numbers without marker rings", () => {
     expect(rendererSource).toContain('mcdYellow: Color3.FromHexString("#FFC72C")');
     expect(rendererSource).toContain('material(this.scene, "active-yellow-trail", palette.mcdYellow, 1)');
     expect(rendererSource).toContain('palette.black.toHexString()');
+    expect(rendererSource).toContain('new DynamicTexture("rounded-grid-board-texture"');
+    expect(rendererSource).toContain('output.disableDepthWrite = true');
+    expect(rendererSource).toContain('CreateBox(`active-solid-segment-${index}`');
+    expect(rendererSource).toContain('CreateDisc(`active-solid-joint-${index}`');
     expect(rendererSource).toContain('CreateBox(`hint-${index}`');
+    expect(rendererSource).not.toContain("footprint-yellow-");
     expect(rendererSource).not.toContain("waypoint-outer-");
     expect(rendererSource).not.toContain("waypoint-growth-ring-");
   });

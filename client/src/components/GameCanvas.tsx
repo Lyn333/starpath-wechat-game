@@ -10,6 +10,13 @@ const LOGO_URL = "/manus-storage/forestpath-logo_ee30ae93.png";
 const TARGET_URL = "/manus-storage/forestpath-visual-target_547d763c.png";
 const WEB_PROGRESS_KEY = "forest-trail-web-200-progress-v1";
 
+function defaultSelectedLevel(): ForestLevel {
+  if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "8") {
+    return FOREST_LEVELS.find((level) => level.gridSize === "8x8" && level.difficulty === "easy") ?? FOREST_LEVELS[0];
+  }
+  return FOREST_LEVELS[0];
+}
+
 const initialState: GameSnapshot = {
   path: [],
   status: "idle",
@@ -36,7 +43,7 @@ export default function GameCanvas() {
   const [gridSize, setGridSize] = useState<ForestLevel["gridSize"]>("6x6");
   const [difficulty, setDifficulty] = useState<LevelDifficulty>("easy");
   const [page, setPage] = useState(0);
-  const [selectedLevel, setSelectedLevel] = useState<ForestLevel>(FOREST_LEVELS[0]);
+  const [selectedLevel, setSelectedLevel] = useState<ForestLevel>(defaultSelectedLevel);
   const [completed, setCompleted] = useState<CompletionMap>(() => typeof window === "undefined" ? {} : loadWebProgress(window.localStorage, WEB_PROGRESS_KEY));
   const availableLevels = useMemo(() => listForestLevels(gridSize, difficulty), [gridSize, difficulty]);
   const currentGroup = useMemo(() => getLevelGroup(FOREST_LEVELS, selectedLevel.gridSize, selectedLevel.difficulty), [selectedLevel]);
