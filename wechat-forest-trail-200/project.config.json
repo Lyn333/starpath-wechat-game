@@ -1,0 +1,19 @@
+{
+  "description": "森林寻径：200关Canvas微信小游戏",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true,
+    "urlCheck": true
+  },
+  "compileType": "game",
+  "libVersion": "3.6.2",
+  "appid": "touristappid",
+  "projectname": "森林寻径200关",
+  "miniprogramRoot": "./"
+}

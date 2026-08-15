@@ -1,0 +1,12 @@
+{
+  "name": "forestpath-wechat-200-levels",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build:levels": "node scripts/build-level-bundle.mjs",
+    "test:levels": "node test-level-bundle.cjs",
+    "test:progress": "node test-progress.cjs",
+    "test:flow": "node test-flow.cjs",
+    "verify": "node scripts/build-level-bundle.mjs && node test-level-bundle.cjs && node test-progress.cjs && node test-flow.cjs"
+  }
+}
