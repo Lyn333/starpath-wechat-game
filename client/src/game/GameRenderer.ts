@@ -5,7 +5,8 @@ import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { Scene } from "@babylonjs/core/scene";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { Layer } from "@babylonjs/core/Layers/layer";
+import "@babylonjs/core/Shaders/default.vertex";
+import "@babylonjs/core/Shaders/default.fragment";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
@@ -15,8 +16,6 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { PathEngine } from "./PathEngine";
 import { sameCell, type Cell, type GameSnapshot, type Wall } from "./types";
-
-const BACKGROUND_URL = "/manus-storage/forestpath-background_666bf595.png";
 
 interface BoardLayout {
   width: number;
@@ -57,7 +56,6 @@ export class GameRenderer {
   private readonly dynamicMeshes: AbstractMesh[] = [];
   private readonly dynamicMaterials: Material[] = [];
   private readonly dynamicTextures: Texture[] = [];
-  private readonly background: Layer;
   private layout: BoardLayout = { width: 0, height: 0, left: 0, top: 0, size: 0, cell: 0 };
   private lastWidth = 0;
   private lastHeight = 0;
@@ -68,8 +66,9 @@ export class GameRenderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly engine: PathEngine,
   ) {
-    this.scene.clearColor = new Color4(0.055, 0.14, 0.1, 1);
-    this.background = new Layer("forest-field-notebook", BACKGROUND_URL, scene, true);
+    // 背景由CSS负责渲染：避免Layer在Vite开发服务器回退到HTML时将其误作GLSL源码。
+    // 透明清屏让亚马逊雨林的深绿、冠层光斑与湿润雾气可以透过棋盘环境层。
+    this.scene.clearColor = new Color4(0.018, 0.09, 0.045, 0);
     this.camera = new FreeCamera("forest-trail-camera", new Vector3(0, 0, -10), scene);
     this.camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
     this.snapshot = engine.getSnapshot();
@@ -105,7 +104,6 @@ export class GameRenderer {
   dispose(): void {
     this.disposeStatic();
     this.disposeDynamic();
-    this.background.dispose();
     this.camera.dispose();
   }
 
@@ -130,7 +128,7 @@ export class GameRenderer {
   private rebuildStatic(): void {
     this.disposeStatic();
     const { size, cell } = this.layout;
-    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "forest-paper-veil", palette.forest, 0.82));
+    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "forest-paper-veil", palette.forest, 0.58));
     const notebookBackingMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-backing", palette.barkDeep, 0.9));
     const binderMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-binder", palette.bark, 0.95));
     const gridMaterial = this.ownStaticMaterial(material(this.scene, "grid-lines", palette.ivorySoft, 0.31));
