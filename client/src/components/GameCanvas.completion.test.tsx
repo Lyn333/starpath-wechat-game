@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FOREST_LEVELS } from "@/game/levelBundle";
@@ -36,8 +38,15 @@ vi.mock("@/game/scene", () => ({
 
 import GameCanvas from "./GameCanvas";
 
+const gameCanvasSource = readFileSync(path.resolve(import.meta.dirname, "GameCanvas.tsx"), "utf8");
+
 describe("GameCanvas completion flow", () => {
   beforeEach(() => window.localStorage.clear());
+
+  it("does not render the failed completion decoration asset", () => {
+    expect(gameCanvasSource).not.toContain("forestpath-completion-leaves");
+    expect(gameCanvasSource).not.toContain("COMPLETION_URL");
+  });
 
   it("returns from the completed final real level to the library and refreshes its done state", async () => {
     const firstLevel = FOREST_LEVELS[0];

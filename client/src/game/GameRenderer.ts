@@ -1,4 +1,4 @@
-/** 林下探险手册设计：Babylon 负责可见的林区路线图、路标和琥珀林径；坐标与输入均按触摸屏比例自适应。 */
+/** 极简白底棋盘：Babylon 负责白色棋盘、黑色数字和明黄色路径；坐标与输入均按触摸屏比例自适应。 */
 import { Color3, Color4, Vector3 } from "@babylonjs/core/Maths/math";
 import { Camera } from "@babylonjs/core/Cameras/camera";
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
@@ -27,17 +27,14 @@ interface BoardLayout {
 }
 
 const palette = {
-  ivory: Color3.FromHexString("#F4EFD9"),
-  ivorySoft: Color3.FromHexString("#D8DEC8"),
-  forest: Color3.FromHexString("#0E241A"),
-  moss: Color3.FromHexString("#1D3B2A"),
-  mossLight: Color3.FromHexString("#356646"),
-  bark: Color3.FromHexString("#745438"),
-  barkDeep: Color3.FromHexString("#352719"),
-  amber: Color3.FromHexString("#E2AF52"),
-  amberLight: Color3.FromHexString("#F2CB7A"),
-  fern: Color3.FromHexString("#8DCB91"),
-  fernSoft: Color3.FromHexString("#C0E4AC"),
+  paper: Color3.FromHexString("#FFFFFF"),
+  paperSoft: Color3.FromHexString("#FAFAFA"),
+  grid: Color3.FromHexString("#D5D5D5"),
+  graphite: Color3.FromHexString("#202020"),
+  charcoal: Color3.FromHexString("#4A4A4A"),
+  mcdYellow: Color3.FromHexString("#FFC72C"),
+  yellowLight: Color3.FromHexString("#FFD95A"),
+  black: Color3.FromHexString("#111111"),
 };
 
 function material(scene: Scene, name: string, color: Color3, alpha = 1): StandardMaterial {
@@ -66,9 +63,8 @@ export class GameRenderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly engine: PathEngine,
   ) {
-    // 背景由CSS负责渲染：避免Layer在Vite开发服务器回退到HTML时将其误作GLSL源码。
-    // 透明清屏让亚马逊雨林的深绿、冠层光斑与湿润雾气可以透过棋盘环境层。
-    this.scene.clearColor = new Color4(0.018, 0.09, 0.045, 0);
+    // 使用不透明白色清屏，让Canvas与页面背景保持统一；不再依赖会触发着色器异步加载的Layer。
+    this.scene.clearColor = new Color4(1, 1, 1, 1);
     this.camera = new FreeCamera("forest-trail-camera", new Vector3(0, 0, -10), scene);
     this.camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
     this.snapshot = engine.getSnapshot();
@@ -128,21 +124,21 @@ export class GameRenderer {
   private rebuildStatic(): void {
     this.disposeStatic();
     const { size, cell } = this.layout;
-    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "forest-paper-veil", palette.forest, 0.58));
-    const notebookBackingMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-backing", palette.barkDeep, 0.9));
-    const binderMaterial = this.ownStaticMaterial(material(this.scene, "field-notebook-binder", palette.bark, 0.95));
-    const gridMaterial = this.ownStaticMaterial(material(this.scene, "grid-lines", palette.ivorySoft, 0.31));
-    const cellMaterial = this.ownStaticMaterial(material(this.scene, "moss-map-cell", palette.moss, 0.48));
-    const frameMaterial = this.ownStaticMaterial(material(this.scene, "wood-map-frame", palette.bark, 0.92));
-    const wallMaterial = this.ownStaticMaterial(material(this.scene, "fallen-log-wall", palette.barkDeep, 0.98));
+    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "white-canvas-base", palette.paper, 1));
+    const notebookBackingMaterial = this.ownStaticMaterial(material(this.scene, "board-backing", palette.paper, 1));
+    const binderMaterial = this.ownStaticMaterial(material(this.scene, "board-accent", palette.mcdYellow, 1));
+    const gridMaterial = this.ownStaticMaterial(material(this.scene, "grid-lines", palette.grid, 1));
+    const cellMaterial = this.ownStaticMaterial(material(this.scene, "paper-map-cell", palette.paperSoft, 1));
+    const frameMaterial = this.ownStaticMaterial(material(this.scene, "graphite-map-frame", palette.graphite, 1));
+    const wallMaterial = this.ownStaticMaterial(material(this.scene, "wall", palette.charcoal, 1));
 
-    // 用半透明林地纸面柔化全屏环境层，避免加载中的背景纹理干扰路线图可读性。
+    // 以白色画布作为棋盘和界面的统一底色。
     const forestVeil = CreateBox("forest-paper-veil", { width: this.layout.width + 20, height: this.layout.height + 20, depth: 1 }, this.scene);
     forestVeil.position = this.toWorld({ x: this.layout.width / 2, y: this.layout.height / 2 }, 4.5);
     forestVeil.material = forestVeilMaterial;
     this.staticMeshes.push(forestVeil);
 
-    // 棋盘被一张深色皮革夹页托住，并以三个树皮铆钉表达野外手册的装订感。
+    // 细黑框与三枚黄色点缀建立清晰的棋盘边界，不干扰数字阅读。
     const notebookBacking = CreateBox("field-notebook-backing", { width: size + 64, height: size + 68, depth: 1 }, this.scene);
     notebookBacking.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 3.7);
     notebookBacking.material = notebookBackingMaterial;
@@ -182,7 +178,7 @@ export class GameRenderer {
     this.staticMeshes.push(frame);
     const innerFrame = CreateBox("moss-map-inner", { width: size + 6, height: size + 6, depth: 1.2 }, this.scene);
     innerFrame.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.5);
-    innerFrame.material = this.ownStaticMaterial(material(this.scene, "moss-map-inner-material", palette.forest, 1));
+    innerFrame.material = this.ownStaticMaterial(material(this.scene, "paper-map-inner-material", palette.paper, 1));
     this.staticMeshes.push(innerFrame);
 
     this.engine.puzzle.walls.forEach((wall, index) => {
@@ -200,7 +196,7 @@ export class GameRenderer {
 
   private createPath(): void {
     if (this.snapshot.path.length === 0) return;
-    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-forest-trail", palette.amber, 0.98));
+    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-yellow-trail", palette.mcdYellow, 1));
     if (this.snapshot.path.length === 1) {
       const disc = CreateDisc("trail-origin", { radius: Math.max(6, this.layout.cell * 0.12), tessellation: 32 }, this.scene);
       disc.position = this.toWorld(this.centerOf(this.snapshot.path[0]), -3.2);
@@ -217,64 +213,31 @@ export class GameRenderer {
       footprint.scaling.set(0.62, 1.32, 1);
       footprint.rotation.z = index % 2 === 0 ? 0.34 : -0.34;
       footprint.position = this.toWorld(this.centerOf(cell), -4.05);
-      footprint.material = this.ownDynamicMaterial(material(this.scene, `footprint-amber-${index}`, palette.amberLight, 0.88));
+      footprint.material = this.ownDynamicMaterial(material(this.scene, `footprint-yellow-${index}`, palette.yellowLight, 1));
       this.dynamicMeshes.push(footprint);
     });
   }
 
   private createHintMarkers(): void {
-    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "sunlit-trail", palette.fernSoft, 0.32));
+    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "yellow-trail-hint", palette.mcdYellow, 0.42));
     this.snapshot.hintCells.forEach((cell, index) => {
-      const disc = CreateDisc(`hint-${index}`, { radius: this.layout.cell * 0.18, tessellation: 24 }, this.scene);
-      disc.position = this.toWorld(this.centerOf(cell), -2.6);
-      disc.material = hintMaterial;
-      this.dynamicMeshes.push(disc);
+      const tile = CreateBox(`hint-${index}`, { width: this.layout.cell * 0.64, height: this.layout.cell * 0.64, depth: 0.35 }, this.scene);
+      tile.position = this.toWorld(this.centerOf(cell), -3.55);
+      tile.material = hintMaterial;
+      this.dynamicMeshes.push(tile);
     });
   }
 
   private createWaypoints(): void {
     this.engine.puzzle.waypoints.forEach((waypoint) => {
-      const passed = waypoint.number < this.snapshot.nextWaypoint;
-      const current = waypoint.number === this.snapshot.nextWaypoint;
-      const outer = CreateDisc(`waypoint-outer-${waypoint.number}`, { radius: this.layout.cell * 0.29, tessellation: 36 }, this.scene);
-      outer.position = this.toWorld(this.centerOf(waypoint.cell), -4);
-      outer.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-bark-${waypoint.number}`, passed ? palette.fern : palette.amber, 1));
-      this.dynamicMeshes.push(outer);
-
-      const growthRing = CreateDisc(`waypoint-growth-ring-${waypoint.number}`, { radius: this.layout.cell * 0.235, tessellation: 36 }, this.scene);
-      growthRing.position = this.toWorld(this.centerOf(waypoint.cell), -4.08);
-      growthRing.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-growth-ring-${waypoint.number}`, palette.bark, 1));
-      this.dynamicMeshes.push(growthRing);
-
-      const inner = CreateDisc(`waypoint-inner-${waypoint.number}`, { radius: this.layout.cell * 0.235, tessellation: 36 }, this.scene);
-      inner.scaling.set(0.72, 0.72, 1);
-      inner.position = this.toWorld(this.centerOf(waypoint.cell), -4.15);
-      inner.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-core-${waypoint.number}`, current ? palette.fernSoft : palette.forest, 1));
-      this.dynamicMeshes.push(inner);
-
-      [-0.72, 0, 0.72].forEach((angle, index) => {
-        const leaf = CreateDisc(`trail-marker-leaf-${waypoint.number}-${index}`, { radius: this.layout.cell * 0.065, tessellation: 18 }, this.scene);
-        leaf.scaling.set(0.55, 1.28, 1);
-        leaf.rotation.z = angle;
-        leaf.position = this.toWorld({ x: this.centerOf(waypoint.cell).x + Math.cos(angle - 1.2) * this.layout.cell * 0.31, y: this.centerOf(waypoint.cell).y + Math.sin(angle - 1.2) * this.layout.cell * 0.31 }, -3.92);
-        leaf.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-leaf-material-${waypoint.number}-${index}`, passed ? palette.fernSoft : palette.mossLight, 0.96));
-        this.dynamicMeshes.push(leaf);
-      });
-
-      if (current && this.snapshot.status !== "completed") {
-        const halo = CreateDisc(`waypoint-halo-${waypoint.number}`, { radius: this.layout.cell * 0.37, tessellation: 36 }, this.scene);
-        halo.position = this.toWorld(this.centerOf(waypoint.cell), -3.85);
-        halo.material = this.ownDynamicMaterial(material(this.scene, `trail-marker-halo-${waypoint.number}`, palette.fern, 0.18));
-        this.dynamicMeshes.push(halo);
-      }
-      this.createNumberLabel(waypoint.number, waypoint.cell, passed || current ? palette.forest : palette.ivory);
+      this.createNumberLabel(waypoint.number, waypoint.cell);
     });
   }
 
-  private createNumberLabel(number: number, cell: Cell, color: Color3): void {
+  private createNumberLabel(number: number, cell: Cell): void {
     const texture = new DynamicTexture(`waypoint-label-${number}`, { width: 256, height: 256 }, this.scene, false);
     texture.hasAlpha = true;
-    texture.drawText(String(number), 0, 182, "700 156px system-ui, sans-serif", color.toHexString(), "transparent", true);
+    texture.drawText(String(number), 0, 182, "700 156px system-ui, sans-serif", palette.black.toHexString(), "transparent", true);
     const labelMaterial = this.ownDynamicMaterial(new StandardMaterial(`waypoint-label-material-${number}`, this.scene));
     labelMaterial.disableLighting = true;
     labelMaterial.diffuseTexture = texture;

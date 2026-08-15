@@ -10,8 +10,17 @@ describe("GameRenderer shader registration", () => {
     expect(rendererSource).toContain('import "@babylonjs/core/Shaders/default.fragment";');
   });
 
-  it("uses the CSS rain forest backdrop instead of the Layer shader path", () => {
+  it("uses the CSS backdrop instead of the Layer shader path", () => {
     expect(rendererSource).not.toContain("@babylonjs/core/Layers/layer");
     expect(rendererSource).not.toContain("new Layer(");
+  });
+
+  it("uses a white board, McDonald's-style yellow path, and black numbers without marker rings", () => {
+    expect(rendererSource).toContain('mcdYellow: Color3.FromHexString("#FFC72C")');
+    expect(rendererSource).toContain('material(this.scene, "active-yellow-trail", palette.mcdYellow, 1)');
+    expect(rendererSource).toContain('palette.black.toHexString()');
+    expect(rendererSource).toContain('CreateBox(`hint-${index}`');
+    expect(rendererSource).not.toContain("waypoint-outer-");
+    expect(rendererSource).not.toContain("waypoint-growth-ring-");
   });
 });

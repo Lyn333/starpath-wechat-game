@@ -8,7 +8,6 @@ import { getCompletionAction, getLevelGroup, isLevelUnlocked, loadWebProgress, p
 
 const LOGO_URL = "/manus-storage/forestpath-logo_ee30ae93.png";
 const TARGET_URL = "/manus-storage/forestpath-visual-target_547d763c.png";
-const COMPLETION_URL = "/manus-storage/forestpath-completion-leaves_5dc72282.png";
 const WEB_PROGRESS_KEY = "forest-trail-web-200-progress-v1";
 
 const initialState: GameSnapshot = {
@@ -153,7 +152,6 @@ export default function GameCanvas() {
 
       {state.status === "completed" && (
         <section className="completion-panel" role="dialog" aria-modal="true" aria-label="林径完成">
-          <img className="completion-stars" src={COMPLETION_URL} alt="" />
           <p>TRAIL COMPLETE</p>
           <h2>林径已走通</h2>
           <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{state.moves} 枚脚印</span></div>

@@ -12,6 +12,8 @@ import {
 
 type Listener = (snapshot: GameSnapshot) => void;
 
+const HINT_DURATION_MS = 3_600;
+
 export class PathEngine {
   readonly puzzle: PuzzleDefinition;
   private readonly listeners = new Set<Listener>();
@@ -142,10 +144,10 @@ export class PathEngine {
 
   showHint(): void {
     if (this.status === "completed") return;
-    this.hintUntil = performance.now() + 1400;
+    this.hintUntil = performance.now() + HINT_DURATION_MS;
     this.message = "阳光穿过树叶，照亮了接下来的四步。";
     this.emit();
-    window.setTimeout(() => this.emit(), 1420);
+    globalThis.setTimeout(() => this.emit(), HINT_DURATION_MS + 20);
   }
 
   private countPassedWaypoints(): number {
