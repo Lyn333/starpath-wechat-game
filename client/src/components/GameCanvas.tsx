@@ -1,12 +1,15 @@
 /** 林下探险手册设计：React 仅承载全屏画布与可读 HUD；视觉语言为雨林墨绿、树皮与林径琥珀。 */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { createGameScene, type GameHandle } from "@/game/scene";
 import type { GameSnapshot } from "@/game/types";
+import { FOREST_LEVELS, listForestLevels, type ForestLevel, type LevelDifficulty } from "@/game/levelBundle";
+import { getLevelGroup, getNextLevel, isLevelUnlocked, loadWebProgress, persistWebProgress, type CompletionMap } from "@/game/webLevelProgress";
 
 const LOGO_URL = "/manus-storage/forestpath-logo_ee30ae93.png";
 const TARGET_URL = "/manus-storage/forestpath-visual-target_547d763c.png";
 const COMPLETION_URL = "/manus-storage/forestpath-completion-leaves_5dc72282.png";
+const WEB_PROGRESS_KEY = "forest-trail-web-200-progress-v1";
 
 const initialState: GameSnapshot = {
   path: [],
@@ -27,8 +30,22 @@ export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const startedRef = useRef(false);
   const handleRef = useRef<GameHandle | null>(null);
+  const completionHandledRef = useRef(false);
   const [state, setState] = useState<GameSnapshot>(initialState);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(() => typeof window === "undefined" ? true : !new URLSearchParams(window.location.search).has("demo"));
+  const [gridSize, setGridSize] = useState<ForestLevel["gridSize"]>("6x6");
+  const [difficulty, setDifficulty] = useState<LevelDifficulty>("easy");
+  const [page, setPage] = useState(0);
+  const [selectedLevel, setSelectedLevel] = useState<ForestLevel>(FOREST_LEVELS[0]);
+  const [completed, setCompleted] = useState<CompletionMap>(() => typeof window === "undefined" ? {} : loadWebProgress(window.localStorage, WEB_PROGRESS_KEY));
+  const availableLevels = useMemo(() => listForestLevels(gridSize, difficulty), [gridSize, difficulty]);
+  const currentGroup = useMemo(() => getLevelGroup(FOREST_LEVELS, selectedLevel.gridSize, selectedLevel.difficulty), [selectedLevel]);
+  const currentGroupIndex = currentGroup.findIndex((level) => level.id === selectedLevel.id);
+  const nextLevel = getNextLevel(currentGroup, selectedLevel.id, completed);
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(availableLevels.length / pageSize));
+  const visibleLevels = availableLevels.slice(page * pageSize, page * pageSize + pageSize);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -37,7 +54,19 @@ export default function GameCanvas() {
     const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, adaptToDeviceRatio: true });
     let active = true;
 
-    createGameScene(engine, canvas, { onStateChange: (next) => active && setState(next) }).then((handle) => {
+    completionHandledRef.current = false;
+    createGameScene(engine, canvas, { puzzle: selectedLevel, onStateChange: (next) => {
+      if (!active) return;
+      setState(next);
+      if (next.status === "completed" && !completionHandledRef.current) {
+        completionHandledRef.current = true;
+        setCompleted((current) => {
+          const updated = { ...current, [selectedLevel.id]: Date.now() };
+          persistWebProgress(window.localStorage, WEB_PROGRESS_KEY, updated);
+          return updated;
+        });
+      }
+    } }).then((handle) => {
       if (!active) {
         handle.dispose();
         return;
@@ -63,7 +92,26 @@ export default function GameCanvas() {
       engine.dispose();
       startedRef.current = false;
     };
-  }, []);
+  }, [selectedLevel]);
+
+  useEffect(() => { setPage(0); }, [gridSize, difficulty]);
+
+  const chooseLevel = (level: ForestLevel) => {
+    if (!isLevelUnlocked(availableLevels, level.id, completed)) return;
+    setSelectedLevel(level);
+    setLibraryOpen(false);
+  };
+
+  const chooseNextLevel = () => {
+    if (nextLevel) {
+      setSelectedLevel(nextLevel);
+      setLibraryOpen(false);
+    } else {
+      setGridSize(selectedLevel.gridSize);
+      setDifficulty(selectedLevel.difficulty);
+      setLibraryOpen(true);
+    }
+  };
 
   return (
     <main className="game-shell" aria-label="森林寻径路径谜题">
@@ -85,8 +133,8 @@ export default function GameCanvas() {
       </header>
 
       <aside className="archive-label" aria-label="林区信息">
-        <span>TRAIL · 01</span>
-        <strong>苔影林地</strong>
+        <span>{selectedLevel.gridSize} · {selectedLevel.difficulty.toUpperCase()} · {String(currentGroupIndex + 1).padStart(2, "0")}</span>
+        <strong>{selectedLevel.name}</strong>
       </aside>
 
       <section className="signal-readout" aria-live="polite">
@@ -96,6 +144,7 @@ export default function GameCanvas() {
       </section>
 
       <nav className="control-deck" aria-label="游戏控制">
+        <button type="button" onClick={() => setLibraryOpen(true)}>关卡目录</button>
         <button type="button" onClick={() => handleRef.current?.undo()} disabled={state.path.length === 0 || state.status === "completed"}>踏回一步</button>
         <button type="button" className="accent-control" onClick={() => handleRef.current?.showHint()} disabled={state.status === "completed"}>叶径提示</button>
         <button type="button" onClick={() => handleRef.current?.reset()}>重新入林</button>
@@ -107,7 +156,7 @@ export default function GameCanvas() {
           <p>TRAIL COMPLETE</p>
           <h2>林径已走通</h2>
           <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{state.moves} 枚脚印</span></div>
-          <button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button>
+          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{nextLevel ? "下一条林径" : "返回目录"}</button></div>
         </section>
       )}
 
@@ -122,6 +171,27 @@ export default function GameCanvas() {
             <p>若选错方向，可返回上一格踩回脚印；“叶径提示”会短暂照亮接下来的安全路径。</p>
             <button type="button" onClick={() => setHelpOpen(false)}>踏入林地</button>
           </div>
+        </section>
+      )}
+
+      {libraryOpen && (
+        <section className="level-library" role="dialog" aria-modal="true" aria-label="200关关卡目录">
+          <header className="library-header">
+            <div><p className="brand-kicker">FOREST TRAIL ARCHIVE · 200</p><h2>选择下一片林地</h2><p>6×6 与 8×8 各 100 关。只有走通前一条林径，才会解锁同组的下一关。</p></div>
+            <button type="button" className="circle-control" aria-label="关闭关卡目录" onClick={() => setLibraryOpen(false)}>×</button>
+          </header>
+          <div className="library-filters" aria-label="关卡筛选">
+            <div><span>棋盘尺寸</span>{(["6x6", "8x8"] as const).map((size) => <button type="button" key={size} className={gridSize === size ? "selected" : ""} onClick={() => setGridSize(size)}>{size}</button>)}</div>
+            <div><span>林地难度</span>{([{ id: "easy", label: "林缘" }, { id: "medium", label: "林间" }, { id: "hard", label: "密林" }] as const).map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => setDifficulty(item.id)}>{item.label}</button>)}</div>
+            <strong>已归档 {Object.keys(completed).length}/200</strong>
+          </div>
+          <div className="level-grid">{visibleLevels.map((level, index) => {
+            const groupIndex = page * pageSize + index;
+            const unlocked = isLevelUnlocked(availableLevels, level.id, completed);
+            const done = Boolean(completed[level.id]);
+            return <button key={level.id} type="button" disabled={!unlocked} className={`${done ? "done" : ""} ${level.id === selectedLevel.id ? "active" : ""}`} onClick={() => chooseLevel(level)}><span>{String(groupIndex + 1).padStart(2, "0")}</span><strong>{level.name}</strong><small>{done ? "已走通" : unlocked ? "可进入" : "待解锁"}</small></button>;
+          })}</div>
+          <footer className="library-pagination"><button type="button" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>← 上一页</button><span>{page + 1} / {pageCount}</span><button type="button" disabled={page >= pageCount - 1} onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}>下一页 →</button></footer>
         </section>
       )}
     </main>

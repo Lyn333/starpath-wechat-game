@@ -4,7 +4,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { InputAdapter } from "./InputAdapter";
 import { PathEngine } from "./PathEngine";
 import { GameRenderer } from "./GameRenderer";
-import type { GameSnapshot } from "./types";
+import type { GameSnapshot, PuzzleDefinition } from "./types";
 
 export interface GameHandle {
   scene: Scene;
@@ -17,11 +17,12 @@ export interface GameHandle {
 
 export interface GameSceneOptions {
   onStateChange?: (snapshot: GameSnapshot) => void;
+  puzzle?: PuzzleDefinition;
 }
 
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement, options: GameSceneOptions = {}): Promise<GameHandle> {
   const scene = new Scene(engine);
-  const pathEngine = new PathEngine();
+  const pathEngine = new PathEngine(options.puzzle);
   const renderer = new GameRenderer(scene, canvas, pathEngine);
   const input = new InputAdapter(canvas, {
     getCellAt: (x, y) => renderer.getCellAt(x, y),
