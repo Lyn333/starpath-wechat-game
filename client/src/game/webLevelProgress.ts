@@ -17,6 +17,11 @@ export function getNextLevel(group: ForestLevel[], currentId: string, completed:
   return candidate && isLevelUnlocked(group, candidate.id, completed) ? candidate : null;
 }
 
+export function getCompletionAction(group: ForestLevel[], currentId: string, completed: CompletionMap) {
+  const nextLevel = getNextLevel(group, currentId, completed);
+  return nextLevel ? { kind: "next" as const, level: nextLevel } : { kind: "library" as const };
+}
+
 export function loadWebProgress(storage: Storage, key: string): CompletionMap {
   try {
     const parsed = JSON.parse(storage.getItem(key) || "{}");

@@ -4,7 +4,7 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { createGameScene, type GameHandle } from "@/game/scene";
 import type { GameSnapshot } from "@/game/types";
 import { FOREST_LEVELS, listForestLevels, type ForestLevel, type LevelDifficulty } from "@/game/levelBundle";
-import { getLevelGroup, getNextLevel, isLevelUnlocked, loadWebProgress, persistWebProgress, type CompletionMap } from "@/game/webLevelProgress";
+import { getCompletionAction, getLevelGroup, isLevelUnlocked, loadWebProgress, persistWebProgress, type CompletionMap } from "@/game/webLevelProgress";
 
 const LOGO_URL = "/manus-storage/forestpath-logo_ee30ae93.png";
 const TARGET_URL = "/manus-storage/forestpath-visual-target_547d763c.png";
@@ -42,7 +42,8 @@ export default function GameCanvas() {
   const availableLevels = useMemo(() => listForestLevels(gridSize, difficulty), [gridSize, difficulty]);
   const currentGroup = useMemo(() => getLevelGroup(FOREST_LEVELS, selectedLevel.gridSize, selectedLevel.difficulty), [selectedLevel]);
   const currentGroupIndex = currentGroup.findIndex((level) => level.id === selectedLevel.id);
-  const nextLevel = getNextLevel(currentGroup, selectedLevel.id, completed);
+  const completionAction = getCompletionAction(currentGroup, selectedLevel.id, completed);
+  const nextLevel = completionAction.kind === "next" ? completionAction.level : null;
   const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(availableLevels.length / pageSize));
   const visibleLevels = availableLevels.slice(page * pageSize, page * pageSize + pageSize);
@@ -103,8 +104,8 @@ export default function GameCanvas() {
   };
 
   const chooseNextLevel = () => {
-    if (nextLevel) {
-      setSelectedLevel(nextLevel);
+    if (completionAction.kind === "next") {
+      setSelectedLevel(completionAction.level);
       setLibraryOpen(false);
     } else {
       setGridSize(selectedLevel.gridSize);
@@ -156,7 +157,7 @@ export default function GameCanvas() {
           <p>TRAIL COMPLETE</p>
           <h2>林径已走通</h2>
           <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{state.moves} 枚脚印</span></div>
-          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{nextLevel ? "下一条林径" : "返回目录"}</button></div>
+          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{completionAction.kind === "next" ? "下一条林径" : "返回目录"}</button></div>
         </section>
       )}
 
