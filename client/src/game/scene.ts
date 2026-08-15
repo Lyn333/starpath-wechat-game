@@ -2,6 +2,7 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { InputAdapter } from "./InputAdapter";
+import { getDemoStepMs, startDemoPlayback } from "./demoPlayback";
 import { PathEngine } from "./PathEngine";
 import { GameRenderer } from "./GameRenderer";
 import type { GameSnapshot, PuzzleDefinition } from "./types";
@@ -35,18 +36,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement,
   scene.onBeforeRenderObservable.add(() => renderer.tick());
 
   const demoMode = new URLSearchParams(window.location.search).has("demo");
-  let demoTimer: number | null = null;
-  if (demoMode) {
-    let cursor = 0;
-    const playNext = () => {
-      const cell = pathEngine.puzzle.solution[cursor];
-      if (!cell) return;
-      pathEngine.moveTo(cell);
-      cursor += 1;
-      demoTimer = window.setTimeout(playNext, 92);
-    };
-    demoTimer = window.setTimeout(playNext, 520);
-  }
+  const stopDemo = startDemoPlayback(pathEngine, demoMode, getDemoStepMs(window.location.search));
 
   return {
     scene,
@@ -55,7 +45,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement,
     reset: () => pathEngine.reset(),
     showHint: () => pathEngine.showHint(),
     dispose: () => {
-      if (demoTimer !== null) window.clearTimeout(demoTimer);
+      stopDemo();
       unsubscribe();
       input.dispose();
       renderer.dispose();
