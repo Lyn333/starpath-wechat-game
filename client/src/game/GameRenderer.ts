@@ -30,7 +30,7 @@ interface BoardLayout {
 const palette = {
   skyBlue: Color3.FromHexString("#64B9ED"),
   brickBrown: Color3.FromHexString("#7B321E"),
-  coinYellow: Color3.FromHexString("#FFD43B"),
+  pathGreen: Color3.FromHexString("#26D953"),
   grassGreen: Color3.FromHexString("#35A853"),
   black: Color3.FromHexString("#1A1714"),
 };
@@ -156,7 +156,7 @@ export class GameRenderer {
 
   private createPath(): void {
     if (this.snapshot.path.length === 0) return;
-    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-coin-trail", palette.coinYellow, 1));
+    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-bright-green-trail", palette.pathGreen, 1));
     const routeRadius = Math.max(9, this.layout.cell * 0.17);
     const routeDepth = -3.7;
     if (this.snapshot.path.length === 1) {
@@ -208,7 +208,11 @@ export class GameRenderer {
   private createNumberLabel(number: number, cell: Cell): void {
     const texture = new DynamicTexture(`waypoint-label-${number}`, { width: 256, height: 256 }, this.scene, false);
     texture.hasAlpha = true;
-    texture.drawText(String(number), 0, 182, "700 156px system-ui, sans-serif", palette.black.toHexString(), "transparent", true);
+    const context = texture.getContext();
+    const textContext = context as unknown as { textAlign: CanvasTextAlign; textBaseline: CanvasTextBaseline };
+    textContext.textAlign = "center";
+    textContext.textBaseline = "middle";
+    texture.drawText(String(number), 128, 128, '700 156px "Microsoft YaHei", "微软雅黑", sans-serif', palette.black.toHexString(), "transparent", true);
     const labelMaterial = this.ownDynamicMaterial(new StandardMaterial(`waypoint-label-material-${number}`, this.scene));
     labelMaterial.disableLighting = true;
     labelMaterial.diffuseTexture = texture;
