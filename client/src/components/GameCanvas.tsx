@@ -4,10 +4,11 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { createGameScene, type GameHandle } from "@/game/scene";
 import type { GameSnapshot } from "@/game/types";
 import { FOREST_LEVELS, type ForestLevel, type ForestGridSize, type LevelDifficulty } from "@/game/levelBundle";
-import { getCompletionAction, getLevelGroup, isLevelUnlocked, loadWebProgress, persistWebProgress, type CompletionMap } from "@/game/webLevelProgress";
+import { getLevelGroup, loadWebProgress, persistWebProgress, type CompletionMap } from "@/game/webLevelProgress";
 import { addContinuation, loadContinuations, persistContinuations, type ContinuationMap } from "@/game/continuationLevels";
 import { loadLaunchCatalog } from "@/game/launchCatalog";
 import { getDemoGrid } from "@/game/demoPlayback";
+import { drawRandomLevel, shuffleLaunchCatalog } from "@/game/randomLevelDraw";
 
 const LOGO_URL = "/manus-storage/forestpath-logo_ee30ae93.png";
 const TARGET_URL = "/manus-storage/forestpath-visual-target_547d763c.png";
@@ -58,9 +59,7 @@ export default function GameCanvas() {
   const [continuations, setContinuations] = useState<ContinuationMap>(() => typeof window === "undefined" ? {} : loadContinuations(window.localStorage, WEB_CONTINUATION_KEY));
   const availableLevels = useMemo(() => levels.filter((level) => level.gridSize === gridSize && level.difficulty === difficulty), [levels, gridSize, difficulty]);
   const currentGroup = useMemo(() => getLevelGroup(levels, selectedLevel.gridSize, selectedLevel.difficulty), [levels, selectedLevel]);
-  const currentGroupIndex = currentGroup.findIndex((level) => level.id === selectedLevel.id);
-  const completionAction = getCompletionAction(currentGroup, selectedLevel.id, completed);
-  const nextLevel = completionAction.kind === "next" ? completionAction.level : null;
+  const hasRandomNext = Boolean(drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id }));
   const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(availableLevels.length / pageSize));
   const visibleLevels = availableLevels.slice(page * pageSize, page * pageSize + pageSize);
@@ -70,11 +69,11 @@ export default function GameCanvas() {
     loadLaunchCatalog().then((launchLevels) => {
       if (!active) return;
       const restored = Object.values(continuations).flat();
-      const merged = [...launchLevels, ...restored];
+      const merged = shuffleLaunchCatalog([...launchLevels, ...restored]);
       setLevels(merged);
-      setSelectedLevel((current) => {
+      setSelectedLevel(() => {
         const demoGrid = requestedDemoGrid();
-        return (demoGrid ? merged.find((level) => level.gridSize === demoGrid && level.difficulty === "easy") : undefined) ?? merged.find((level) => level.id === current.id) ?? merged[0];
+        return merged.find((level) => level.gridSize === (demoGrid ?? "6x6") && level.difficulty === "easy") ?? merged[0]!;
       });
     }).catch(() => {
       if (active) setLevels(FOREST_LEVELS);
@@ -134,22 +133,34 @@ export default function GameCanvas() {
   useEffect(() => { setPage(0); }, [gridSize, difficulty]);
 
   const chooseLevel = (level: ForestLevel) => {
-    if (!isLevelUnlocked(availableLevels, level.id, completed)) return;
     setSelectedLevel(level);
     setLibraryOpen(false);
   };
 
-  const chooseNextLevel = () => {
-    if (completionAction.kind === "next") {
-      setSelectedLevel(completionAction.level);
-      setLibraryOpen(false);
+  const addSeedContinuation = (targetGridSize: ForestGridSize, targetDifficulty: LevelDifficulty) => {
+    const added = addContinuation({ levels, gridSize: targetGridSize, difficulty: targetDifficulty, continuations });
+    setContinuations(added.continuations);
+    persistContinuations(window.localStorage, WEB_CONTINUATION_KEY, added.continuations);
+    setLevels((current) => [...current, added.level]);
+    setSelectedLevel(added.level);
+    setLibraryOpen(false);
+  };
+
+  const chooseRandomLevel = () => {
+    const selected = drawRandomLevel({ levels: availableLevels, completed, gridSize, difficulty });
+    if (selected) {
+      chooseLevel(selected);
     } else {
-      const added = addContinuation({ levels, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, continuations });
-      setContinuations(added.continuations);
-      persistContinuations(window.localStorage, WEB_CONTINUATION_KEY, added.continuations);
-      setLevels((current) => [...current, added.level]);
-      setSelectedLevel(added.level);
-      setLibraryOpen(false);
+      addSeedContinuation(gridSize, difficulty);
+    }
+  };
+
+  const chooseNextLevel = () => {
+    const selected = drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id });
+    if (selected) {
+      chooseLevel(selected);
+    } else {
+      addSeedContinuation(selectedLevel.gridSize, selectedLevel.difficulty);
     }
   };
 
@@ -173,7 +184,7 @@ export default function GameCanvas() {
       </header>
 
       <aside className="archive-label" aria-label="林区信息">
-        <span>{selectedLevel.gridSize} · {selectedLevel.difficulty.toUpperCase()} · {String(currentGroupIndex + 1).padStart(2, "0")}</span>
+        <span>{selectedLevel.gridSize} · {selectedLevel.difficulty.toUpperCase()} · 随机林径</span>
         <strong>{selectedLevel.name}</strong>
       </aside>
 
@@ -195,7 +206,7 @@ export default function GameCanvas() {
           <p>TRAIL COMPLETE</p>
           <h2>林径已走通</h2>
           <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{state.moves} 枚脚印</span></div>
-          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{completionAction.kind === "next" ? "下一条林径" : "生成新林径"}</button></div>
+          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{hasRandomNext ? "随机下一条林径" : "生成新林径"}</button></div>
         </section>
       )}
 
@@ -216,7 +227,7 @@ export default function GameCanvas() {
       {libraryOpen && (
         <section className="level-library" role="dialog" aria-modal="true" aria-label="2400关关卡目录">
           <header className="library-header">
-            <div><p className="brand-kicker">FOREST TRAIL ARCHIVE · {catalogLoading ? "LOADING" : levels.length}</p><h2>选择下一片林地</h2><p>覆盖6×6、8×8、10×10与12×12，每种尺寸按林缘、林间、密林分组。走通当前分类后可继续生成新seed林径。</p></div>
+            <div><p className="brand-kicker">FOREST TRAIL ARCHIVE · {catalogLoading ? "LOADING" : levels.length}</p><h2>随机抽取一片林地</h2><p>覆盖6×6、8×8、10×10与12×12，每种尺寸按林缘、林间、密林分组。每个分类随机抽题，全部走通后可继续生成新seed林径。</p></div>
             <button type="button" className="circle-control" aria-label="关闭关卡目录" onClick={() => setLibraryOpen(false)}>×</button>
           </header>
           <div className="library-filters" aria-label="关卡筛选">
@@ -224,11 +235,11 @@ export default function GameCanvas() {
             <div><span>林地难度</span>{([{ id: "easy", label: "林缘" }, { id: "medium", label: "林间" }, { id: "hard", label: "密林" }] as const).map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => setDifficulty(item.id)}>{item.label}</button>)}</div>
             <strong>已归档 {Object.keys(completed).length}/{levels.length}</strong>
           </div>
+          <button type="button" className="random-draw" onClick={chooseRandomLevel}>随机抽取一条林径</button>
           <div className="level-grid">{visibleLevels.map((level, index) => {
             const groupIndex = page * pageSize + index;
-            const unlocked = isLevelUnlocked(availableLevels, level.id, completed);
             const done = Boolean(completed[level.id]);
-            return <button key={level.id} type="button" disabled={!unlocked} className={`${done ? "done" : ""} ${level.id === selectedLevel.id ? "active" : ""}`} onClick={() => chooseLevel(level)}><span>{String(groupIndex + 1).padStart(2, "0")}</span><strong>{level.name}</strong><small>{done ? "已走通" : unlocked ? "可进入" : "待解锁"}</small></button>;
+            return <button key={level.id} type="button" className={`${done ? "done" : ""} ${level.id === selectedLevel.id ? "active" : ""}`} onClick={() => chooseLevel(level)}><span>随机 {String(groupIndex + 1).padStart(2, "0")}</span><strong>{level.name}</strong><small>{done ? "已走通" : "可进入"}</small></button>;
           })}</div>
           <footer className="library-pagination"><button type="button" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>← 上一页</button><span>{page + 1} / {pageCount}</span><button type="button" disabled={page >= pageCount - 1} onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}>下一页 →</button></footer>
         </section>

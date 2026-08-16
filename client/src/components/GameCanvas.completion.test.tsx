@@ -5,6 +5,7 @@ import path from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FOREST_LEVELS } from "@/game/levelBundle";
+import { shuffleLaunchCatalog } from "@/game/randomLevelDraw";
 import { createSeededPuzzle } from "@/game/seededPuzzle";
 import type { GameSnapshot } from "@/game/types";
 
@@ -61,10 +62,30 @@ describe("GameCanvas completion flow", () => {
 
   it("reopens the library from an active game via the directory control", async () => {
     const { unmount } = render(<GameCanvas />);
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(FOREST_LEVELS[0].name) }));
-    expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "随机抽取一条林径" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull());
+    await waitFor(() => expect(Object.keys(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-progress-v1") ?? "{}")).length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole("button", { name: "关卡目录" }));
     expect(await screen.findByRole("dialog", { name: "2400关关卡目录" })).toBeTruthy();
+    unmount();
+  });
+
+  it("keeps the randomized directory order stable when the library is closed and reopened in one session", async () => {
+    const { unmount } = render(<GameCanvas />);
+    await screen.findByText("FOREST TRAIL ARCHIVE · 200");
+    const initialOrder = (await screen.findAllByRole("button", { name: /林缘路标/ })).map((button) => button.textContent);
+    fireEvent.click(screen.getByRole("button", { name: "关闭关卡目录" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "关卡目录" }));
+    const reopenedOrder = (await screen.findAllByRole("button", { name: /林缘路标/ })).map((button) => button.textContent);
+    expect(reopenedOrder).toEqual(initialOrder);
+    unmount();
+  });
+
+  it("offers a random draw control instead of a fixed unlock sequence", async () => {
+    const { unmount } = render(<GameCanvas />);
+    expect(await screen.findByRole("button", { name: "随机抽取一条林径" })).toBeTruthy();
+    expect(screen.queryByText("待解锁")).toBeNull();
     unmount();
   });
 
@@ -91,21 +112,19 @@ describe("GameCanvas completion flow", () => {
   });
 
   it("marks the final launch level complete and mints a saved seed continuation", async () => {
-    const firstLevel = FOREST_LEVELS[0];
-    const group = FOREST_LEVELS.filter((level) => level.gridSize === firstLevel.gridSize && level.difficulty === firstLevel.difficulty);
-    const terminalLevel = group[group.length - 1];
-    const priorProgress = Object.fromEntries(group.slice(0, -1).map((level) => [level.id, Date.now()]));
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const terminalLevel = shuffleLaunchCatalog(FOREST_LEVELS, () => 0).find((level) => level.gridSize === "6x6" && level.difficulty === "easy")!;
+    const group = FOREST_LEVELS.filter((level) => level.gridSize === terminalLevel.gridSize && level.difficulty === terminalLevel.difficulty);
+    const priorProgress = Object.fromEntries(group.filter((level) => level.id !== terminalLevel.id).map((level) => [level.id, Date.now()]));
     window.localStorage.setItem("forest-trail-web-2400-progress-v1", JSON.stringify(priorProgress));
 
     const { unmount } = render(<GameCanvas />);
-    for (let page = 0; page < Math.floor((group.length - 1) / 12); page += 1) {
-      fireEvent.click(screen.getByRole("button", { name: "下一页 →" }));
-    }
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(terminalLevel.name) }));
+    await waitFor(() => expect(screen.getByLabelText("林区信息").textContent).toContain(terminalLevel.name));
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-progress-v1") ?? "{}")[terminalLevel.id]).toBeTruthy());
     fireEvent.click(await screen.findByRole("button", { name: "生成新林径" }));
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-continuations-v1") ?? "{}")[`${terminalLevel.gridSize}:${terminalLevel.difficulty}`]).toHaveLength(1));
     expect(screen.getByText(/种子林径/)).toBeTruthy();
     unmount();
+    randomSpy.mockRestore();
   });
 });

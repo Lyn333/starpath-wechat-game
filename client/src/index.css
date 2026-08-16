@@ -100,6 +100,7 @@ button { font: inherit; }
 .level-grid span { color: #725400; }
 .level-grid small { color: rgba(17,17,17,.58); }
 .library-pagination { color: rgba(17,17,17,.68); }
+.random-draw { display: block; width: min(1030px, 100%); min-height: 46px; margin: 0 auto 16px; border: 1px solid #111; background: #ffc72c; color: #111; font-weight: 800; font-size: 11px; letter-spacing: .09em; transition: transform 160ms cubic-bezier(.23,1,.32,1), background-color 160ms cubic-bezier(.23,1,.32,1); }.random-draw:hover { background: #ffda55; }.random-draw:active { transform: scale(.985); }
 
 @keyframes sheet-arrive { from { opacity: 0; transform: translate(-50%, -48%) scale(.97); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes guide-reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
