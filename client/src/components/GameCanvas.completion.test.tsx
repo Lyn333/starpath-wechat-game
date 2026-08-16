@@ -34,6 +34,7 @@ vi.mock("@/game/scene", () => ({
 import GameCanvas from "./GameCanvas";
 
 const gameCanvasSource = readFileSync(path.resolve(import.meta.dirname, "GameCanvas.tsx"), "utf8");
+const indexCssSource = readFileSync(path.resolve(import.meta.dirname, "../index.css"), "utf8");
 
 describe("GameCanvas single-board flow", () => {
   afterEach(() => cleanup());
@@ -57,6 +58,8 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
     expect(screen.getByRole("group", { name: "选择难度" })).toBeTruthy();
     expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
+    expect(screen.queryByText("难度 · 随棋盘尺寸变化")).toBeNull();
+    expect(indexCssSource).toContain(".solo-picker { position: absolute; z-index: 3; right: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; gap: 6px;");
     expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
     unmount();
   });
