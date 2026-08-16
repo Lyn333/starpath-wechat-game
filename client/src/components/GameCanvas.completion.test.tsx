@@ -12,15 +12,9 @@ import type { GameSnapshot } from "@/game/types";
 const { launchCatalogMock } = vi.hoisted(() => ({ launchCatalogMock: vi.fn() }));
 
 vi.mock("@/game/launchCatalog", () => ({ loadLaunchCatalog: launchCatalogMock }));
-
 vi.mock("@babylonjs/core/Engines/engine", () => ({
-  Engine: class {
-    runRenderLoop() {}
-    resize() {}
-    dispose() {}
-  },
+  Engine: class { runRenderLoop() {} resize() {} dispose() {} },
 }));
-
 vi.mock("@/game/scene", () => ({
   createGameScene: async (_engine: unknown, _canvas: unknown, options: { puzzle: { solution: GameSnapshot["path"]; waypoints: unknown[] }; onStateChange?: (snapshot: GameSnapshot) => void }) => {
     const snapshot: GameSnapshot = {
@@ -33,12 +27,7 @@ vi.mock("@/game/scene", () => ({
       hintCells: [],
     };
     queueMicrotask(() => options.onStateChange?.(snapshot));
-    return {
-      dispose: () => undefined,
-      getSnapshot: () => snapshot,
-      scene: { render: () => undefined },
-      pathEngine: { undo: () => undefined, reset: () => undefined, showHint: () => undefined },
-    };
+    return { dispose: () => undefined, getSnapshot: () => snapshot, scene: { render: () => undefined }, pathEngine: { undo: () => undefined, reset: () => undefined, showHint: () => undefined } };
   },
 }));
 
@@ -46,7 +35,7 @@ import GameCanvas from "./GameCanvas";
 
 const gameCanvasSource = readFileSync(path.resolve(import.meta.dirname, "GameCanvas.tsx"), "utf8");
 
-describe("GameCanvas completion flow", () => {
+describe("GameCanvas single-board flow", () => {
   afterEach(() => cleanup());
 
   beforeEach(() => {
@@ -55,75 +44,56 @@ describe("GameCanvas completion flow", () => {
     launchCatalogMock.mockResolvedValue(FOREST_LEVELS);
   });
 
-  it("does not render the failed completion decoration asset", () => {
+  it("does not render the removed library layer or failed decoration asset", () => {
     expect(gameCanvasSource).not.toContain("forestpath-completion-leaves");
-    expect(gameCanvasSource).not.toContain("COMPLETION_URL");
+    expect(gameCanvasSource).not.toContain("2400关关卡目录");
   });
 
-  it("reopens the library from an active game via the directory control", async () => {
+  it("shows only the current board, compact controls, and size plus difficulty selectors", async () => {
     const { unmount } = render(<GameCanvas />);
-    fireEvent.click(await screen.findByRole("button", { name: "随机抽取一条林径" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull());
-    await waitFor(() => expect(Object.keys(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-progress-v1") ?? "{}")).length).toBeGreaterThan(0));
-    fireEvent.click(screen.getByRole("button", { name: "关卡目录" }));
-    expect(await screen.findByRole("dialog", { name: "2400关关卡目录" })).toBeTruthy();
+    expect(await screen.findByLabelText("可触摸操作的当前谜题棋盘")).toBeTruthy();
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /撤回/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "选择难度" })).toBeTruthy();
+    expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
     unmount();
   });
 
-  it("keeps the randomized directory order stable when the library is closed and reopened in one session", async () => {
+  it("randomly enters one puzzle for the selected difficulty and grid size without showing a collection", async () => {
+    const tenByTenMedium = createSeededPuzzle({ gridSize: "10x10", difficulty: "medium", seed: "single-board-10x10", ordinal: 1 });
+    launchCatalogMock.mockResolvedValue([...FOREST_LEVELS, tenByTenMedium]);
     const { unmount } = render(<GameCanvas />);
-    await screen.findByText("FOREST TRAIL ARCHIVE · 200");
-    const initialOrder = (await screen.findAllByRole("button", { name: /林缘路标/ })).map((button) => button.textContent);
-    fireEvent.click(screen.getByRole("button", { name: "关闭关卡目录" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "关卡目录" }));
-    const reopenedOrder = (await screen.findAllByRole("button", { name: /林缘路标/ })).map((button) => button.textContent);
-    expect(reopenedOrder).toEqual(initialOrder);
-    unmount();
-  });
-
-  it("offers a random draw control instead of a fixed unlock sequence", async () => {
-    const { unmount } = render(<GameCanvas />);
-    expect(await screen.findByRole("button", { name: "随机抽取一条林径" })).toBeTruthy();
-    expect(screen.queryByText("待解锁")).toBeNull();
-    unmount();
-  });
-
-  it("reopens the library after entering a 10×10 launch level", async () => {
-    const tenByTen = createSeededPuzzle({ gridSize: "10x10", difficulty: "easy", seed: "component-10x10", ordinal: 1 });
-    launchCatalogMock.mockResolvedValue([...FOREST_LEVELS, tenByTen]);
-    const { unmount } = render(<GameCanvas />);
+    await screen.findByRole("button", { name: "中等" });
+    fireEvent.click(screen.getByRole("button", { name: "中等" }));
+    await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("中等 6x6"));
     fireEvent.click(screen.getByRole("button", { name: "10x10" }));
-    fireEvent.click(await screen.findByRole("button", { name: new RegExp(tenByTen.name) }));
-    await waitFor(() => expect(screen.getByLabelText("林区信息").textContent).toContain("10x10"));
-    fireEvent.click(screen.getByRole("button", { name: "关卡目录" }));
-    expect(await screen.findByRole("dialog", { name: "2400关关卡目录" })).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("中等 10x10"));
+    expect(screen.queryByText(tenByTenMedium.name)).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
     unmount();
   });
 
-  it("loads the 12×12 launch level and receives demo-driven progress for demo=12", async () => {
-    const twelveByTwelve = createSeededPuzzle({ gridSize: "12x12", difficulty: "easy", seed: "component-12x12", ordinal: 1 });
+  it("loads the 12×12 demo selection into the single-board flow", async () => {
+    const twelveByTwelve = createSeededPuzzle({ gridSize: "12x12", difficulty: "easy", seed: "single-board-12x12", ordinal: 1 });
     window.history.replaceState({}, "", "/?demo=12");
     launchCatalogMock.mockResolvedValue([twelveByTwelve]);
     const { unmount } = render(<GameCanvas />);
-    await waitFor(() => expect(screen.getByLabelText("林区信息").textContent).toContain("12x12"));
-    await waitFor(() => expect(screen.getByText("踏步数").parentElement?.textContent).toContain("143"));
+    await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("简单 12x12"));
+    await waitFor(() => expect(screen.getByText(/Points:/).textContent).not.toContain("Points: 0"));
     unmount();
   });
 
-  it("marks the final launch level complete and mints a saved seed continuation", async () => {
+  it("mints and saves a seed continuation only after a random category is exhausted", async () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
     const terminalLevel = shuffleLaunchCatalog(FOREST_LEVELS, () => 0).find((level) => level.gridSize === "6x6" && level.difficulty === "easy")!;
     const group = FOREST_LEVELS.filter((level) => level.gridSize === terminalLevel.gridSize && level.difficulty === terminalLevel.difficulty);
-    const priorProgress = Object.fromEntries(group.filter((level) => level.id !== terminalLevel.id).map((level) => [level.id, Date.now()]));
-    window.localStorage.setItem("forest-trail-web-2400-progress-v1", JSON.stringify(priorProgress));
-
+    window.localStorage.setItem("forest-trail-web-2400-progress-v1", JSON.stringify(Object.fromEntries(group.filter((level) => level.id !== terminalLevel.id).map((level) => [level.id, Date.now()]))));
     const { unmount } = render(<GameCanvas />);
-    await waitFor(() => expect(screen.getByLabelText("林区信息").textContent).toContain(terminalLevel.name));
-    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-progress-v1") ?? "{}")[terminalLevel.id]).toBeTruthy());
-    fireEvent.click(await screen.findByRole("button", { name: "生成新林径" }));
+    await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("简单 6x6"));
+    fireEvent.click(await screen.findByRole("button", { name: "生成新谜题" }));
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem("forest-trail-web-2400-continuations-v1") ?? "{}")[`${terminalLevel.gridSize}:${terminalLevel.difficulty}`]).toHaveLength(1));
-    expect(screen.getByText(/种子林径/)).toBeTruthy();
     unmount();
     randomSpy.mockRestore();
   });

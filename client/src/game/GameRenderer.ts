@@ -104,9 +104,11 @@ export class GameRenderer {
   private applyLayout(): void {
     const width = Math.max(window.innerWidth, 320);
     const height = Math.max(window.innerHeight, 480);
-    const size = Math.min(width * 0.82, height * 0.59, 620);
+    const isCompact = width < 700;
+    const size = Math.min(width * (isCompact ? 0.72 : 0.42), height * 0.57, 540);
     const left = (width - size) / 2;
-    const top = Math.max(112, Math.min(height - size - 112, height * 0.51 - size / 2));
+    const footerSpace = isCompact ? 236 : 140;
+    const top = Math.max(90, Math.min(height - size - footerSpace, height * 0.12));
     this.layout = { width, height, left, top, size, cell: size / this.engine.puzzle.size };
     this.lastWidth = width;
     this.lastHeight = height;
