@@ -26,12 +26,13 @@ interface BoardLayout {
   cell: number;
 }
 
+// 平台冒险灵感调色：天空、金币、蘑菇红、草地与砖块；不使用外部游戏素材或标志。
 const palette = {
-  paper: Color3.FromHexString("#FFFFFF"),
-  graphite: Color3.FromHexString("#202020"),
-  charcoal: Color3.FromHexString("#4A4A4A"),
-  mcdYellow: Color3.FromHexString("#FFC72C"),
-  black: Color3.FromHexString("#111111"),
+  skyBlue: Color3.FromHexString("#64B9ED"),
+  brickBrown: Color3.FromHexString("#7B321E"),
+  coinYellow: Color3.FromHexString("#FFD43B"),
+  grassGreen: Color3.FromHexString("#35A853"),
+  black: Color3.FromHexString("#1A1714"),
 };
 
 function material(scene: Scene, name: string, color: Color3, alpha = 1): StandardMaterial {
@@ -61,8 +62,8 @@ export class GameRenderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly engine: PathEngine,
   ) {
-    // 使用不透明白色清屏，让Canvas与页面背景保持统一；不再依赖会触发着色器异步加载的Layer。
-    this.scene.clearColor = new Color4(1, 1, 1, 1);
+    // 使用天空蓝清屏，让Canvas与页面背景保持统一；不再依赖会触发着色器异步加载的Layer。
+    this.scene.clearColor = new Color4(0.392, 0.725, 0.929, 1);
     this.camera = new FreeCamera("forest-trail-camera", new Vector3(0, 0, -10), scene);
     this.camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
     this.snapshot = engine.getSnapshot();
@@ -124,10 +125,10 @@ export class GameRenderer {
   private rebuildStatic(): void {
     this.disposeStatic();
     const { size } = this.layout;
-    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "white-canvas-base", palette.paper, 1));
-    const wallMaterial = this.ownStaticMaterial(material(this.scene, "wall", palette.charcoal, 1));
+    const forestVeilMaterial = this.ownStaticMaterial(material(this.scene, "sky-canvas-base", palette.skyBlue, 1));
+    const wallMaterial = this.ownStaticMaterial(material(this.scene, "brick-wall", palette.brickBrown, 1));
 
-    // 以白色画布作为棋盘和界面的统一底色。
+    // 以天空蓝画布和奶油棋盘形成高对比的轻量平台冒险视觉。
     const forestVeil = CreateBox("forest-paper-veil", { width: this.layout.width + 20, height: this.layout.height + 20, depth: 1 }, this.scene);
     forestVeil.position = this.toWorld({ x: this.layout.width / 2, y: this.layout.height / 2 }, 4.5);
     forestVeil.material = forestVeilMaterial;
@@ -155,7 +156,7 @@ export class GameRenderer {
 
   private createPath(): void {
     if (this.snapshot.path.length === 0) return;
-    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-yellow-trail", palette.mcdYellow, 1));
+    const routeMaterial = this.ownDynamicMaterial(material(this.scene, "active-coin-trail", palette.coinYellow, 1));
     const routeRadius = Math.max(9, this.layout.cell * 0.17);
     const routeDepth = -3.7;
     if (this.snapshot.path.length === 1) {
@@ -188,7 +189,7 @@ export class GameRenderer {
   }
 
   private createHintMarkers(): void {
-    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "yellow-trail-hint", palette.mcdYellow, 0.42));
+    const hintMaterial = this.ownDynamicMaterial(material(this.scene, "grass-trail-hint", palette.grassGreen, 0.52));
     this.snapshot.hintCells.forEach((cell, index) => {
       const tile = CreateBox(`hint-${index}`, { width: this.layout.cell * 0.64, height: this.layout.cell * 0.64, depth: 0.35 }, this.scene);
       tile.position = this.toWorld(this.centerOf(cell), -3.55);
@@ -248,17 +249,17 @@ export class GameRenderer {
 
     context.clearRect(0, 0, 1024, 1024);
     this.drawRoundedRect(context, padding, padding, boardSize, boardSize, radius);
-    context.fillStyle = "#FFFFFF";
+    context.fillStyle = "#FFF4BE";
     context.fill();
-    context.lineWidth = 7;
-    context.strokeStyle = "#E6E2D8";
+    context.lineWidth = 10;
+    context.strokeStyle = "#D9483B";
     context.stroke();
 
     context.save();
     this.drawRoundedRect(context, padding, padding, boardSize, boardSize, radius);
     context.clip();
-    context.strokeStyle = "#DCDCDC";
-    context.lineWidth = 2;
+    context.strokeStyle = "#D8B968";
+    context.lineWidth = 3;
     for (let index = 1; index < this.engine.puzzle.size; index += 1) {
       const offset = padding + (boardSize / this.engine.puzzle.size) * index;
       context.beginPath();

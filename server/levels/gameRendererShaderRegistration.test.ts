@@ -15,9 +15,12 @@ describe("GameRenderer shader registration", () => {
     expect(rendererSource).not.toContain("new Layer(");
   });
 
-  it("uses a rounded white grid board, a continuous yellow path, and black numbers without marker rings", () => {
-    expect(rendererSource).toContain('mcdYellow: Color3.FromHexString("#FFC72C")');
-    expect(rendererSource).toContain('material(this.scene, "active-yellow-trail", palette.mcdYellow, 1)');
+  it("uses a platform-adventure palette with sky, coin path, brick walls, and black numbers without marker rings", () => {
+    expect(rendererSource).toContain('skyBlue: Color3.FromHexString("#64B9ED")');
+    expect(rendererSource).toContain('coinYellow: Color3.FromHexString("#FFD43B")');
+    expect(rendererSource).toContain('brickBrown: Color3.FromHexString("#7B321E")');
+    expect(rendererSource).toContain('grassGreen: Color3.FromHexString("#35A853")');
+    expect(rendererSource).toContain('material(this.scene, "active-coin-trail", palette.coinYellow, 1)');
     expect(rendererSource).toContain('palette.black.toHexString()');
     expect(rendererSource).toContain('new DynamicTexture("rounded-grid-board-texture"');
     expect(rendererSource).toContain('output.disableDepthWrite = true');
