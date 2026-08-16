@@ -184,7 +184,7 @@ export default function GameCanvas() {
 
       <section className="solo-picker" aria-label="随机谜题选择">
         <div className="solo-choice-row" role="group" aria-label="选择难度">
-          {DIFFICULTIES.map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => selectRandomPuzzle(gridSize, item.id)}>{item.label}</button>)}
+          {DIFFICULTIES.map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => selectRandomPuzzle(gridSize, item.id)}><span className={`difficulty-icon difficulty-icon-${item.id}`} aria-hidden="true" />{item.label}</button>)}
         </div>
         <p>棋盘尺寸</p>
         <div className="solo-choice-row" role="group" aria-label="选择棋盘尺寸">

@@ -57,6 +57,13 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.getByRole("button", { name: /撤回/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
     expect(screen.getByRole("group", { name: "选择难度" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "简单" }).querySelector(".difficulty-icon-easy")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "中等" }).querySelector(".difficulty-icon-medium")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "困难" }).querySelector(".difficulty-icon-hard")).not.toBeNull();
+    expect(indexCssSource).toContain(".difficulty-icon-easy::before");
+    expect(indexCssSource).toContain(".difficulty-icon-medium::before");
+    expect(indexCssSource).toContain(".difficulty-icon-hard::after");
+    expect(indexCssSource).toContain(".solo-choice-row button.selected .difficulty-icon-hard::after");
     expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
     expect(screen.queryByText("难度 · 随棋盘尺寸变化")).toBeNull();
     expect(indexCssSource).toContain(".solo-picker { position: absolute; z-index: 3; right: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; gap: 6px;");
