@@ -177,18 +177,20 @@ export default function GameCanvas() {
         <span className="solo-points">Points: {points}</span>
       </header>
 
-      <nav className="solo-board-actions" aria-label="棋盘操作">
-        <button type="button" onClick={() => handleRef.current?.undo()} disabled={state.path.length === 0 || state.status === "completed"}>↶ 撤回</button>
-        <button type="button" onClick={() => handleRef.current?.reset()}>⌫ 清空</button>
-      </nav>
+      <section className="solo-control-stack" aria-label="棋盘控制区">
+        <nav className="solo-board-actions" aria-label="棋盘操作">
+          <button type="button" onClick={() => handleRef.current?.undo()} disabled={state.path.length === 0 || state.status === "completed"}>↶ 撤回</button>
+          <button type="button" onClick={() => handleRef.current?.reset()}>⌫ 清空</button>
+        </nav>
 
-      <section className="solo-picker" aria-label="随机谜题选择">
-        <div className="solo-choice-row difficulty-choice-row" role="group" aria-label="选择难度">
-          {DIFFICULTIES.map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => selectRandomPuzzle(gridSize, item.id)}><span className={`difficulty-icon difficulty-icon-${item.id}`} aria-hidden="true" />{item.label}</button>)}
-        </div>
-        <div className="solo-choice-row" role="group" aria-label="选择棋盘尺寸">
-          {SIZES.map((size) => <button type="button" key={size} className={gridSize === size ? "selected" : ""} onClick={() => selectRandomPuzzle(size, difficulty)}>{size}</button>)}
-        </div>
+        <section className="solo-picker" aria-label="随机谜题选择">
+          <div className="solo-choice-row difficulty-choice-row" role="group" aria-label="选择难度">
+            {DIFFICULTIES.map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => selectRandomPuzzle(gridSize, item.id)}><span className={`difficulty-icon difficulty-icon-${item.id}`} aria-hidden="true" />{item.label}</button>)}
+          </div>
+          <div className="solo-choice-row" role="group" aria-label="选择棋盘尺寸">
+            {SIZES.map((size) => <button type="button" key={size} className={gridSize === size ? "selected" : ""} onClick={() => selectRandomPuzzle(size, difficulty)}>{size}</button>)}
+          </div>
+        </section>
       </section>
 
       {onboardingStep !== null && (

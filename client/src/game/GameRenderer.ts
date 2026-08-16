@@ -34,6 +34,7 @@ const palette = {
   grassGreen: Color3.FromHexString("#35A853"),
   black: Color3.FromHexString("#1A1714"),
 };
+const BOARD_FRAME_BLEED = 20;
 
 function material(scene: Scene, name: string, color: Color3, alpha = 1): StandardMaterial {
   const output = new StandardMaterial(name, scene);
@@ -111,6 +112,8 @@ export class GameRenderer {
     const footerSpace = isCompact ? 236 : 140;
     const top = Math.max(90, Math.min(height - size - footerSpace, height * 0.12));
     this.layout = { width, height, left, top, size, cell: size / this.engine.puzzle.size };
+    const visibleBoardBottom = top + size + BOARD_FRAME_BLEED / 2;
+    this.canvas.parentElement?.style.setProperty("--actual-board-bottom", `${Math.round(visibleBoardBottom)}px`);
     this.lastWidth = width;
     this.lastHeight = height;
     this.camera.position.set(width / 2, height / 2, -10);
@@ -135,7 +138,7 @@ export class GameRenderer {
     this.staticMeshes.push(forestVeil);
 
     const boardSurface = CreatePlane("rounded-grid-board", { size: 1 }, this.scene);
-    boardSurface.scaling.set(size + 20, size + 20, 1);
+    boardSurface.scaling.set(size + BOARD_FRAME_BLEED, size + BOARD_FRAME_BLEED, 1);
     boardSurface.position = this.toWorld({ x: this.layout.left + size / 2, y: this.layout.top + size / 2 }, 2.8);
     boardSurface.renderingGroupId = 0;
     boardSurface.material = this.createRoundedBoardMaterial();

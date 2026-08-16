@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FOREST_LEVELS } from "@/game/levelBundle";
 import { shuffleLaunchCatalog } from "@/game/randomLevelDraw";
 import { createSeededPuzzle } from "@/game/seededPuzzle";
+import { CONTROL_STACK_METRICS, deriveControlStackLayout } from "@/game/controlStackLayout";
 import type { GameSnapshot } from "@/game/types";
 
 const { launchCatalogMock } = vi.hoisted(() => ({ launchCatalogMock: vi.fn() }));
@@ -66,8 +67,9 @@ describe("GameCanvas single-board flow", () => {
     expect(indexCssSource).toContain(".difficulty-icon-hard::after");
     expect(indexCssSource).toContain(".solo-choice-row button.selected .difficulty-icon-hard::after");
     expect(indexCssSource).toContain(".difficulty-choice-row { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 8px; }");
-    expect(indexCssSource).toContain("--picker-row-height: 43px; --picker-row-gap: 12px; --control-stack-gap: 12px;");
-    expect(indexCssSource).toContain("bottom: calc(max(24px, env(safe-area-inset-bottom)) + (var(--picker-row-height) * 2) + var(--picker-row-gap) + var(--control-stack-gap));");
+    expect(indexCssSource).toContain("--board-bottom: var(--actual-board-bottom); --action-row-height: 40px; --picker-row-height: 43px; --control-stack-gap: 8px;");
+    expect(indexCssSource).toContain("--action-row-height: 30px; --picker-row-height: 37px; --control-stack-gap: 8px;");
+    expect(indexCssSource).toContain(".solo-control-stack { position: absolute; z-index: 3; top: calc(var(--board-bottom) + var(--control-stack-gap));");
     expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "6x6" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "8x8" })).toBeTruthy();
@@ -75,7 +77,10 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.getByRole("button", { name: "12x12" })).toBeTruthy();
     expect(screen.queryByText("难度 · 随棋盘尺寸变化")).toBeNull();
     expect(screen.queryByText("棋盘尺寸")).toBeNull();
-    expect(indexCssSource).toContain(".solo-picker { position: absolute; z-index: 3; right: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; gap: var(--picker-row-gap);");
+    expect(indexCssSource).toContain(".solo-picker { display: grid; gap: var(--control-stack-gap); width: 100%; }");
+    const controlStack = screen.getByLabelText("棋盘控制区");
+    expect(controlStack.querySelector(".solo-board-actions")).not.toBeNull();
+    expect(controlStack.querySelector(".solo-picker")).not.toBeNull();
     expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
     unmount();
   });
@@ -101,6 +106,34 @@ describe("GameCanvas single-board flow", () => {
     const { unmount } = render(<GameCanvas />);
     await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("简单 12x12"));
     await waitFor(() => expect(screen.getByText(/Points:/).textContent).not.toContain("Points: 0"));
+    unmount();
+  });
+
+  it.each(Object.entries(CONTROL_STACK_METRICS))("keeps the DOM control sequence evenly spaced in %s viewports", async (_mode, metrics) => {
+    const { unmount } = render(<GameCanvas />);
+    await screen.findByLabelText("可触摸操作的当前谜题棋盘");
+    const stack = screen.getByLabelText("棋盘控制区");
+    const actions = stack.querySelector<HTMLElement>(".solo-board-actions")!;
+    const difficultyRow = screen.getByRole("group", { name: "选择难度" });
+    const sizeRow = screen.getByRole("group", { name: "选择棋盘尺寸" });
+    const layout = deriveControlStackLayout(520, metrics);
+    const defineRect = (node: HTMLElement, top: number, height: number) => Object.defineProperty(node, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) }),
+    });
+
+    defineRect(actions, layout.actionTop, metrics.actionRowHeight);
+    defineRect(difficultyRow, layout.difficultyTop, metrics.pickerRowHeight);
+    defineRect(sizeRow, layout.sizeTop, metrics.pickerRowHeight);
+    const actionRect = actions.getBoundingClientRect();
+    const difficultyRect = difficultyRow.getBoundingClientRect();
+    const sizeRect = sizeRow.getBoundingClientRect();
+
+    expect(stack.contains(actions)).toBe(true);
+    expect(stack.contains(difficultyRow)).toBe(true);
+    expect(stack.contains(sizeRow)).toBe(true);
+    expect(difficultyRect.top - actionRect.bottom).toBe(metrics.gap);
+    expect(sizeRect.top - difficultyRect.bottom).toBe(metrics.gap);
     unmount();
   });
 

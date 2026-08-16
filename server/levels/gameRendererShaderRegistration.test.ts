@@ -30,6 +30,9 @@ describe("GameRenderer shader registration", () => {
     expect(rendererSource).toContain('CreateBox(`active-solid-segment-${index}`');
     expect(rendererSource).toContain('CreateDisc(`active-solid-joint-${index}`');
     expect(rendererSource).toContain('CreateBox(`hint-${index}`');
+    expect(rendererSource).toContain("const BOARD_FRAME_BLEED = 20;");
+    expect(rendererSource).toContain("const visibleBoardBottom = top + size + BOARD_FRAME_BLEED / 2;");
+    expect(rendererSource).toContain('style.setProperty("--actual-board-bottom", `${Math.round(visibleBoardBottom)}px`)');
     expect(rendererSource).not.toContain("footprint-yellow-");
     expect(rendererSource).not.toContain("waypoint-outer-");
     expect(rendererSource).not.toContain("waypoint-growth-ring-");
