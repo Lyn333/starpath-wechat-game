@@ -66,6 +66,8 @@ describe("GameCanvas single-board flow", () => {
     expect(indexCssSource).toContain(".difficulty-icon-hard::after");
     expect(indexCssSource).toContain(".solo-choice-row button.selected .difficulty-icon-hard::after");
     expect(indexCssSource).toContain(".difficulty-choice-row { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 8px; }");
+    expect(indexCssSource).toContain("--picker-row-height: 43px; --picker-row-gap: 12px; --control-stack-gap: 12px;");
+    expect(indexCssSource).toContain("bottom: calc(max(24px, env(safe-area-inset-bottom)) + (var(--picker-row-height) * 2) + var(--picker-row-gap) + var(--control-stack-gap));");
     expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "6x6" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "8x8" })).toBeTruthy();
@@ -73,7 +75,7 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.getByRole("button", { name: "12x12" })).toBeTruthy();
     expect(screen.queryByText("难度 · 随棋盘尺寸变化")).toBeNull();
     expect(screen.queryByText("棋盘尺寸")).toBeNull();
-    expect(indexCssSource).toContain(".solo-picker { position: absolute; z-index: 3; right: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; gap: 4px;");
+    expect(indexCssSource).toContain(".solo-picker { position: absolute; z-index: 3; right: 50%; bottom: max(24px, env(safe-area-inset-bottom)); display: grid; gap: var(--picker-row-gap);");
     expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
     unmount();
   });
