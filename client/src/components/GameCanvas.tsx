@@ -183,7 +183,7 @@ export default function GameCanvas() {
       </nav>
 
       <section className="solo-picker" aria-label="随机谜题选择">
-        <div className="solo-choice-row" role="group" aria-label="选择难度">
+        <div className="solo-choice-row difficulty-choice-row" role="group" aria-label="选择难度">
           {DIFFICULTIES.map((item) => <button type="button" key={item.id} className={difficulty === item.id ? "selected" : ""} onClick={() => selectRandomPuzzle(gridSize, item.id)}><span className={`difficulty-icon difficulty-icon-${item.id}`} aria-hidden="true" />{item.label}</button>)}
         </div>
         <div className="solo-choice-row" role="group" aria-label="选择棋盘尺寸">

@@ -56,7 +56,8 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.queryAllByRole("img")).toHaveLength(0);
     expect(screen.getByRole("button", { name: /撤回/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "选择难度" })).toBeTruthy();
+    const difficultyGroup = screen.getByRole("group", { name: "选择难度" });
+    expect(difficultyGroup.classList.contains("difficulty-choice-row")).toBe(true);
     expect(screen.getByRole("button", { name: "简单" }).querySelector(".difficulty-icon-easy")).not.toBeNull();
     expect(screen.getByRole("button", { name: "中等" }).querySelector(".difficulty-icon-medium")).not.toBeNull();
     expect(screen.getByRole("button", { name: "困难" }).querySelector(".difficulty-icon-hard")).not.toBeNull();
@@ -64,6 +65,7 @@ describe("GameCanvas single-board flow", () => {
     expect(indexCssSource).toContain(".difficulty-icon-medium::before");
     expect(indexCssSource).toContain(".difficulty-icon-hard::after");
     expect(indexCssSource).toContain(".solo-choice-row button.selected .difficulty-icon-hard::after");
+    expect(indexCssSource).toContain(".difficulty-choice-row { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 8px; }");
     expect(screen.getByRole("group", { name: "选择棋盘尺寸" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "6x6" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "8x8" })).toBeTruthy();
