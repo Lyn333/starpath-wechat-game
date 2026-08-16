@@ -98,3 +98,36 @@ describe("GameCanvas single-board flow", () => {
     randomSpy.mockRestore();
   });
 });
+
+describe("first-visit onboarding", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState({}, "", "/");
+    launchCatalogMock.mockResolvedValue(FOREST_LEVELS);
+  });
+
+  afterEach(() => cleanup());
+
+  it("shows three concise highlighted steps and records completion after starting", async () => {
+    const { unmount } = render(<GameCanvas />);
+    expect(await screen.findByRole("dialog", { name: "新手引导" })).toBeTruthy();
+    expect(screen.getByText("从1号路标出发")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    expect(screen.getByText("沿上下左右连线")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "下一步" }));
+    expect(screen.getByText("需要时撤回或清空")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "开始游玩" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "新手引导" })).toBeNull());
+    expect(window.localStorage.getItem("forest-trail-onboarding-seen-v1")).toBe("1");
+    unmount();
+  });
+
+  it("can be skipped and does not reappear after the local record is set", async () => {
+    const first = render(<GameCanvas />);
+    fireEvent.click(await screen.findByRole("button", { name: "跳过引导" }));
+    expect(window.localStorage.getItem("forest-trail-onboarding-seen-v1")).toBe("1");
+    first.unmount();
+    render(<GameCanvas />);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "新手引导" })).toBeNull());
+  });
+});

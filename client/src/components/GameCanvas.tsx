@@ -11,6 +11,12 @@ import { drawRandomLevel, shuffleLaunchCatalog } from "@/game/randomLevelDraw";
 
 const WEB_PROGRESS_KEY = "forest-trail-web-2400-progress-v1";
 const WEB_CONTINUATION_KEY = "forest-trail-web-2400-continuations-v1";
+const ONBOARDING_KEY = "forest-trail-onboarding-seen-v1";
+
+function shouldShowOnboarding(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("onboarding") === "1" || window.localStorage.getItem(ONBOARDING_KEY) !== "1";
+}
 
 const SIZES: ForestGridSize[] = ["6x6", "8x8", "10x10", "12x12"];
 const DIFFICULTIES: Array<{ id: LevelDifficulty; label: string }> = [
@@ -57,6 +63,7 @@ export default function GameCanvas() {
   const [selectedLevel, setSelectedLevel] = useState<ForestLevel>(defaultSelectedLevel);
   const [completed, setCompleted] = useState<CompletionMap>(() => typeof window === "undefined" ? {} : loadWebProgress(window.localStorage, WEB_PROGRESS_KEY));
   const [continuations, setContinuations] = useState<ContinuationMap>(() => typeof window === "undefined" ? {} : loadContinuations(window.localStorage, WEB_CONTINUATION_KEY));
+  const [onboardingStep, setOnboardingStep] = useState<number | null>(() => shouldShowOnboarding() ? 0 : null);
   const currentGroup = useMemo(() => getLevelGroup(levels, selectedLevel.gridSize, selectedLevel.difficulty), [levels, selectedLevel]);
   const hasRandomNext = Boolean(drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id }));
   const difficultyLabel = DIFFICULTIES.find((item) => item.id === difficulty)?.label ?? "简单";
@@ -146,6 +153,11 @@ export default function GameCanvas() {
     else addSeedContinuation(targetGridSize, targetDifficulty);
   };
 
+  const finishOnboarding = () => {
+    window.localStorage.setItem(ONBOARDING_KEY, "1");
+    setOnboardingStep(null);
+  };
+
   const chooseNextLevel = () => {
     const selected = drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id });
     if (selected) {
@@ -180,6 +192,26 @@ export default function GameCanvas() {
           {SIZES.map((size) => <button type="button" key={size} className={gridSize === size ? "selected" : ""} onClick={() => selectRandomPuzzle(size, difficulty)}>{size}</button>)}
         </div>
       </section>
+
+      {onboardingStep !== null && (
+        <section className="onboarding-overlay" role="dialog" aria-modal="true" aria-label="新手引导">
+          <div className="onboarding-shade" />
+          <div className={`onboarding-focus onboarding-focus-${onboardingStep}`} aria-hidden="true" />
+          <div className="onboarding-card">
+            <p className="onboarding-kicker">FOREST TRAIL · 新手引导 {onboardingStep + 1}/3</p>
+            <h2>{["从1号路标出发", "沿上下左右连线", "需要时撤回或清空"][onboardingStep]}</h2>
+            <p>{[
+              "找到棋盘里的1号黑色路标，这是每条林径的起点。",
+              "按住棋盘并向上下左右滑动，依次连接数字路标，让路径覆盖整片林地。",
+              "走错时点击“撤回”回到上一步；想重新开始时点击“清空”。",
+            ][onboardingStep]}</p>
+            <div className="onboarding-actions">
+              <button type="button" className="onboarding-skip" onClick={finishOnboarding}>跳过引导</button>
+              <button type="button" className="onboarding-next" onClick={() => onboardingStep === 2 ? finishOnboarding() : setOnboardingStep((step) => (step ?? 0) + 1)}>{onboardingStep === 2 ? "开始游玩" : "下一步"}</button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {state.status === "completed" && (
         <section className="completion-panel solo-completion" role="dialog" aria-modal="true" aria-label="林径完成">
