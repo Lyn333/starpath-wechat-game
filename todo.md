@@ -173,4 +173,4 @@
 - [x] 获取对 Lyn333/starpath-wechat-game 的内容写入授权，并核验远程 main 分支已接收当前版本。
 - [x] 编写并推送详细 README.md，说明森林寻径的玩法、运行方式、验收入口与项目结构。
 - [x] 复核 README 中的演示入口、命令和项目结构与当前代码一致。
-- [ ] 将 README 更新提交并推送到 Lyn333/starpath-wechat-game，并记录远程 main 分支提交哈希。
+- [x] 将 README 更新提交并推送到 Lyn333/starpath-wechat-game，并记录远程 main 分支提交哈希（abdbd11）。
