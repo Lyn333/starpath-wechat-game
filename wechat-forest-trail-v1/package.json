@@ -1,0 +1,10 @@
+{
+  "name": "forest-trail-wechat-v1",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build:package": "node scripts/build-minigame-package.mjs",
+    "test": "node test/daily-challenge.cjs && node test/catalog-transform.cjs && node test/game-flow.cjs",
+    "verify": "pnpm run test && pnpm run build:package"
+  }
+}

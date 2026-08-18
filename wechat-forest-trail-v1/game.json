@@ -1,0 +1,7 @@
+{
+  "deviceOrientation": "portrait",
+  "showStatusBar": false,
+  "subpackages": [
+    { "name": "catalog", "root": "catalog/" }
+  ]
+}

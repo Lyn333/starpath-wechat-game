@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const { chinaDateKey, createDailyChallenge, createContinuation } = require("../core/DailyChallenge");
+assert.equal(chinaDateKey(new Date("2026-08-17T15:59:59.000Z")), "2026-08-17");
+assert.equal(chinaDateKey(new Date("2026-08-17T16:00:00.000Z")), "2026-08-18");
+const first = createDailyChallenge(new Date("2026-08-18T01:00:00.000Z"));
+const repeat = createDailyChallenge(new Date("2026-08-18T15:00:00.000Z"));
+assert.equal(first.id, repeat.id); assert.equal(first.solution.length, 64); assert.equal(first.difficulty, "hard");
+assert.notEqual(first.id, createDailyChallenge(new Date("2026-08-19T01:00:00.000Z")).id);
+assert.equal(createContinuation("12x12", "hard", 1).solution.length, 144);
+console.log("每日挑战与seed续关校验通过");

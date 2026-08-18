@@ -1,0 +1,10 @@
+{
+  "description": "森林寻径 v1.0：2,400题、随机题库、每日挑战与音效的微信小游戏包",
+  "packOptions": { "ignore": [ { "value": "scripts/", "type": "folder" }, { "value": "test/", "type": "folder" } ], "include": [] },
+  "setting": { "es6": true, "enhance": true, "postcss": false, "minified": true, "urlCheck": true },
+  "compileType": "game",
+  "libVersion": "3.6.2",
+  "appid": "touristappid",
+  "projectname": "森林寻径 v1.0",
+  "miniprogramRoot": "./"
+}
