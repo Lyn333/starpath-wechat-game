@@ -57,6 +57,11 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.queryAllByRole("img")).toHaveLength(0);
     expect(screen.getByRole("button", { name: /撤回/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
+    const soundToggle = screen.getByRole("button", { name: "音效已开启，点击关闭" });
+    expect(soundToggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(soundToggle);
+    expect(window.localStorage.getItem("forest-trail-sound-enabled-v1")).toBe("0");
+    expect(screen.getByRole("button", { name: "音效已关闭，点击开启" }).getAttribute("aria-pressed")).toBe("false");
     const difficultyGroup = screen.getByRole("group", { name: "选择难度" });
     expect(difficultyGroup.classList.contains("difficulty-choice-row")).toBe(true);
     expect(screen.getByRole("button", { name: "简单" }).querySelector(".difficulty-icon-easy")).not.toBeNull();
@@ -78,6 +83,7 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.queryByText("难度 · 随棋盘尺寸变化")).toBeNull();
     expect(screen.queryByText("棋盘尺寸")).toBeNull();
     expect(indexCssSource).toContain(".solo-picker { display: grid; gap: var(--control-stack-gap); width: 100%; }");
+    expect(indexCssSource).toContain(".solo-sound-toggle");
     const controlStack = screen.getByLabelText("棋盘控制区");
     expect(controlStack.querySelector(".solo-board-actions")).not.toBeNull();
     expect(controlStack.querySelector(".solo-picker")).not.toBeNull();

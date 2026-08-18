@@ -8,6 +8,7 @@ import { addContinuation, loadContinuations, persistContinuations, type Continua
 import { loadLaunchCatalog } from "@/game/launchCatalog";
 import { getDemoGrid } from "@/game/demoPlayback";
 import { drawRandomLevel, shuffleLaunchCatalog } from "@/game/randomLevelDraw";
+import { loadSoundEnabled, persistSoundEnabled, playUiSound } from "@/game/soundEffects";
 
 const WEB_PROGRESS_KEY = "forest-trail-web-2400-progress-v1";
 const WEB_CONTINUATION_KEY = "forest-trail-web-2400-continuations-v1";
@@ -63,11 +64,18 @@ export default function GameCanvas() {
   const [selectedLevel, setSelectedLevel] = useState<ForestLevel>(defaultSelectedLevel);
   const [completed, setCompleted] = useState<CompletionMap>(() => typeof window === "undefined" ? {} : loadWebProgress(window.localStorage, WEB_PROGRESS_KEY));
   const [continuations, setContinuations] = useState<ContinuationMap>(() => typeof window === "undefined" ? {} : loadContinuations(window.localStorage, WEB_CONTINUATION_KEY));
+  const [soundEnabled, setSoundEnabled] = useState(() => typeof window === "undefined" ? true : loadSoundEnabled(window.localStorage));
   const [onboardingStep, setOnboardingStep] = useState<number | null>(() => shouldShowOnboarding() ? 0 : null);
+  const soundEnabledRef = useRef(soundEnabled);
+  const lastSoundSnapshotRef = useRef<GameSnapshot>(initialState);
   const currentGroup = useMemo(() => getLevelGroup(levels, selectedLevel.gridSize, selectedLevel.difficulty), [levels, selectedLevel]);
   const hasRandomNext = Boolean(drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id }));
   const difficultyLabel = DIFFICULTIES.find((item) => item.id === difficulty)?.label ?? "简单";
   const points = state.status === "completed" ? Math.max(10, Math.round(1200 / Math.max(1, state.moves))) : 0;
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -92,10 +100,16 @@ export default function GameCanvas() {
     const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, adaptToDeviceRatio: true });
     let active = true;
     completionHandledRef.current = false;
+    lastSoundSnapshotRef.current = initialState;
     createGameScene(engine, canvas, {
       puzzle: selectedLevel,
       onStateChange: (next) => {
         if (!active) return;
+        const previous = lastSoundSnapshotRef.current;
+        if (next.status === "completed" && previous.status !== "completed") playUiSound("complete", soundEnabledRef.current);
+        else if (next.path.length > previous.path.length) playUiSound("step", soundEnabledRef.current);
+        else if (next.path.length < previous.path.length) playUiSound("undo", soundEnabledRef.current);
+        lastSoundSnapshotRef.current = next;
         setState(next);
         if (next.status === "completed" && !completionHandledRef.current) {
           completionHandledRef.current = true;
@@ -143,6 +157,7 @@ export default function GameCanvas() {
   };
 
   const selectRandomPuzzle = (targetGridSize: ForestGridSize, targetDifficulty: LevelDifficulty) => {
+    playUiSound("tap", soundEnabledRef.current);
     setGridSize(targetGridSize);
     setDifficulty(targetDifficulty);
     const selected = drawRandomLevel({ levels, completed, gridSize: targetGridSize, difficulty: targetDifficulty, excludeId: selectedLevel.id });
@@ -154,17 +169,27 @@ export default function GameCanvas() {
   };
 
   const finishOnboarding = () => {
+    playUiSound("tap", soundEnabledRef.current);
     window.localStorage.setItem(ONBOARDING_KEY, "1");
     setOnboardingStep(null);
   };
 
   const chooseNextLevel = () => {
+    playUiSound("tap", soundEnabledRef.current);
     const selected = drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id });
     if (selected) {
       setState(initialState);
       setSelectedLevel(selected);
     }
     else addSeedContinuation(selectedLevel.gridSize, selectedLevel.difficulty);
+  };
+
+  const resetCurrentPuzzle = () => {
+    const handle = handleRef.current;
+    if (!handle) return;
+    playUiSound("reset", soundEnabledRef.current);
+    lastSoundSnapshotRef.current = { ...handle.getSnapshot(), path: [] };
+    handle.reset();
   };
 
   return (
@@ -175,12 +200,18 @@ export default function GameCanvas() {
         <span className="solo-category">{difficultyLabel} {gridSize}</span>
         <span className="solo-timer">◷ {formatTime(state.elapsedMs)}</span>
         <span className="solo-points">Points: {points}</span>
+        <button type="button" className={`solo-sound-toggle ${soundEnabled ? "is-enabled" : ""}`} aria-label={soundEnabled ? "音效已开启，点击关闭" : "音效已关闭，点击开启"} aria-pressed={soundEnabled} onClick={() => {
+          const nextEnabled = !soundEnabled;
+          setSoundEnabled(nextEnabled);
+          persistSoundEnabled(nextEnabled);
+          if (nextEnabled) playUiSound("tap", true);
+        }}><span>音效</span><strong>{soundEnabled ? "开" : "关"}</strong></button>
       </header>
 
       <section className="solo-control-stack" aria-label="棋盘控制区">
         <nav className="solo-board-actions" aria-label="棋盘操作">
           <button type="button" onClick={() => handleRef.current?.undo()} disabled={state.path.length === 0 || state.status === "completed"}>↶ 撤回</button>
-          <button type="button" onClick={() => handleRef.current?.reset()}>⌫ 清空</button>
+          <button type="button" onClick={resetCurrentPuzzle}>⌫ 清空</button>
         </nav>
 
         <section className="solo-picker" aria-label="随机谜题选择">
@@ -218,7 +249,7 @@ export default function GameCanvas() {
           <p>TRAIL COMPLETE</p>
           <h2>林径已走通</h2>
           <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{points} 积分</span></div>
-          <div className="completion-actions"><button type="button" onClick={() => handleRef.current?.reset()}>再走一次</button><button type="button" onClick={chooseNextLevel}>{hasRandomNext ? "随机下一题" : "生成新谜题"}</button></div>
+          <div className="completion-actions"><button type="button" onClick={resetCurrentPuzzle}>再走一次</button><button type="button" onClick={chooseNextLevel}>{hasRandomNext ? "随机下一题" : "生成新谜题"}</button></div>
         </section>
       )}
     </main>
