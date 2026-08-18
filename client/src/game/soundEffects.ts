@@ -10,12 +10,25 @@ type Tone = {
   volume: number;
 };
 
-const SOUND_TONES: Record<SoundEffect, Tone[]> = {
+export const SOUND_TONES: Record<SoundEffect, Tone[]> = {
   tap: [{ frequency: 620, delay: 0, duration: 0.045, type: "sine", volume: 0.035 }],
   step: [{ frequency: 420, delay: 0, duration: 0.05, type: "triangle", volume: 0.03 }],
   undo: [{ frequency: 300, delay: 0, duration: 0.07, type: "sine", volume: 0.035 }],
   reset: [{ frequency: 250, delay: 0, duration: 0.06, type: "sine", volume: 0.025 }, { frequency: 190, delay: 0.045, duration: 0.08, type: "sine", volume: 0.025 }],
-  complete: [{ frequency: 523.25, delay: 0, duration: 0.11, type: "triangle", volume: 0.045 }, { frequency: 659.25, delay: 0.09, duration: 0.12, type: "triangle", volume: 0.045 }, { frequency: 783.99, delay: 0.19, duration: 0.16, type: "triangle", volume: 0.05 }],
+  // 先以低音落点和上行音阶确认完成，再叠加大三和弦与高音闪光收束；总时长约 0.7 秒。
+  complete: [
+    { frequency: 261.63, delay: 0, duration: 0.085, type: "sine", volume: 0.02 },
+    { frequency: 523.25, delay: 0.015, duration: 0.1, type: "triangle", volume: 0.034 },
+    { frequency: 659.25, delay: 0.105, duration: 0.12, type: "triangle", volume: 0.037 },
+    { frequency: 783.99, delay: 0.205, duration: 0.14, type: "triangle", volume: 0.04 },
+    { frequency: 1046.5, delay: 0.315, duration: 0.24, type: "triangle", volume: 0.048 },
+    { frequency: 523.25, delay: 0.33, duration: 0.2, type: "sine", volume: 0.015 },
+    { frequency: 659.25, delay: 0.33, duration: 0.2, type: "sine", volume: 0.015 },
+    { frequency: 783.99, delay: 0.33, duration: 0.2, type: "sine", volume: 0.015 },
+    { frequency: 1318.51, delay: 0.425, duration: 0.09, type: "sine", volume: 0.018 },
+    { frequency: 1567.98, delay: 0.49, duration: 0.1, type: "sine", volume: 0.02 },
+    { frequency: 2093, delay: 0.575, duration: 0.16, type: "sine", volume: 0.026 },
+  ],
 };
 
 let audioContext: AudioContext | null = null;
