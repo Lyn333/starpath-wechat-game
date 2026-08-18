@@ -57,6 +57,7 @@ describe("GameCanvas single-board flow", () => {
     expect(screen.queryAllByRole("img")).toHaveLength(0);
     expect(screen.getByRole("button", { name: /撤回/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /清空/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "每日挑战" })).toBeTruthy();
     const soundToggle = screen.getByRole("button", { name: "音效已开启，点击关闭" });
     expect(soundToggle.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(soundToggle);
@@ -102,6 +103,17 @@ describe("GameCanvas single-board flow", () => {
     await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("中等 10x10"));
     expect(screen.queryByText(tenByTenMedium.name)).toBeNull();
     expect(screen.queryByRole("dialog", { name: "2400关关卡目录" })).toBeNull();
+    unmount();
+  });
+
+  it("opens one fixed daily challenge and stores its completion separately", async () => {
+    const { unmount } = render(<GameCanvas />);
+    await screen.findByLabelText("可触摸操作的当前谜题棋盘");
+    fireEvent.click(screen.getByRole("button", { name: "每日挑战" }));
+    await waitFor(() => expect(screen.getByLabelText("当前谜题状态").textContent).toContain("每日挑战 8x8"));
+    await waitFor(() => expect(screen.getByText("今日林径已走通")).toBeTruthy());
+    expect(window.localStorage.getItem("forest-trail-daily-challenge-progress-v1")).toContain("daily-");
+    expect(screen.getByRole("button", { name: "每日挑战 ✓" }).getAttribute("aria-pressed")).toBe("true");
     unmount();
   });
 

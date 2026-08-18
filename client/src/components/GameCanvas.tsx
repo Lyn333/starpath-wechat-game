@@ -9,6 +9,7 @@ import { loadLaunchCatalog } from "@/game/launchCatalog";
 import { getDemoGrid } from "@/game/demoPlayback";
 import { drawRandomLevel, shuffleLaunchCatalog } from "@/game/randomLevelDraw";
 import { loadSoundEnabled, persistSoundEnabled, playUiSound } from "@/game/soundEffects";
+import { createDailyChallenge, isDailyChallengeCompleted, loadDailyChallengeProgress, markDailyChallengeCompleted, persistDailyChallengeProgress, type DailyChallengeProgress } from "@/game/dailyChallenge";
 
 const WEB_PROGRESS_KEY = "forest-trail-web-2400-progress-v1";
 const WEB_CONTINUATION_KEY = "forest-trail-web-2400-continuations-v1";
@@ -65,13 +66,17 @@ export default function GameCanvas() {
   const [completed, setCompleted] = useState<CompletionMap>(() => typeof window === "undefined" ? {} : loadWebProgress(window.localStorage, WEB_PROGRESS_KEY));
   const [continuations, setContinuations] = useState<ContinuationMap>(() => typeof window === "undefined" ? {} : loadContinuations(window.localStorage, WEB_CONTINUATION_KEY));
   const [soundEnabled, setSoundEnabled] = useState(() => typeof window === "undefined" ? true : loadSoundEnabled(window.localStorage));
+  const [dailyChallenge, setDailyChallenge] = useState(() => createDailyChallenge());
+  const [dailyProgress, setDailyProgress] = useState<DailyChallengeProgress>(() => typeof window === "undefined" ? {} : loadDailyChallengeProgress(window.localStorage));
+  const [playMode, setPlayMode] = useState<"standard" | "daily">("standard");
   const [onboardingStep, setOnboardingStep] = useState<number | null>(() => shouldShowOnboarding() ? 0 : null);
   const soundEnabledRef = useRef(soundEnabled);
   const lastSoundSnapshotRef = useRef<GameSnapshot>(initialState);
   const currentGroup = useMemo(() => getLevelGroup(levels, selectedLevel.gridSize, selectedLevel.difficulty), [levels, selectedLevel]);
-  const hasRandomNext = Boolean(drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id }));
+  const hasRandomNext = playMode === "standard" && Boolean(drawRandomLevel({ levels: currentGroup, completed, gridSize: selectedLevel.gridSize, difficulty: selectedLevel.difficulty, excludeId: selectedLevel.id }));
   const difficultyLabel = DIFFICULTIES.find((item) => item.id === difficulty)?.label ?? "简单";
   const points = state.status === "completed" ? Math.max(10, Math.round(1200 / Math.max(1, state.moves))) : 0;
+  const dailyCompleted = isDailyChallengeCompleted(dailyProgress, dailyChallenge);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
@@ -113,11 +118,19 @@ export default function GameCanvas() {
         setState(next);
         if (next.status === "completed" && !completionHandledRef.current) {
           completionHandledRef.current = true;
-          setCompleted((current) => {
-            const updated = { ...current, [selectedLevel.id]: Date.now() };
-            persistWebProgress(window.localStorage, WEB_PROGRESS_KEY, updated);
-            return updated;
-          });
+          if (playMode === "daily") {
+            setDailyProgress((current) => {
+              const updated = markDailyChallengeCompleted(current, dailyChallenge);
+              persistDailyChallengeProgress(window.localStorage, updated);
+              return updated;
+            });
+          } else {
+            setCompleted((current) => {
+              const updated = { ...current, [selectedLevel.id]: Date.now() };
+              persistWebProgress(window.localStorage, WEB_PROGRESS_KEY, updated);
+              return updated;
+            });
+          }
         }
       },
     }).then((handle) => {
@@ -145,7 +158,7 @@ export default function GameCanvas() {
       engine.dispose();
       startedRef.current = false;
     };
-  }, [selectedLevel]);
+  }, [selectedLevel, playMode, dailyChallenge]);
 
   const addSeedContinuation = (targetGridSize: ForestGridSize, targetDifficulty: LevelDifficulty) => {
     const added = addContinuation({ levels, gridSize: targetGridSize, difficulty: targetDifficulty, continuations });
@@ -158,6 +171,7 @@ export default function GameCanvas() {
 
   const selectRandomPuzzle = (targetGridSize: ForestGridSize, targetDifficulty: LevelDifficulty) => {
     playUiSound("tap", soundEnabledRef.current);
+    setPlayMode("standard");
     setGridSize(targetGridSize);
     setDifficulty(targetDifficulty);
     const selected = drawRandomLevel({ levels, completed, gridSize: targetGridSize, difficulty: targetDifficulty, excludeId: selectedLevel.id });
@@ -184,6 +198,17 @@ export default function GameCanvas() {
     else addSeedContinuation(selectedLevel.gridSize, selectedLevel.difficulty);
   };
 
+  const selectDailyChallenge = () => {
+    playUiSound("tap", soundEnabledRef.current);
+    const today = createDailyChallenge();
+    setDailyChallenge(today);
+    setPlayMode("daily");
+    setGridSize(today.gridSize);
+    setDifficulty(today.difficulty);
+    setState(initialState);
+    setSelectedLevel(today);
+  };
+
   const resetCurrentPuzzle = () => {
     const handle = handleRef.current;
     if (!handle) return;
@@ -197,7 +222,7 @@ export default function GameCanvas() {
       <canvas ref={canvasRef} className="solo-game-canvas" aria-label="可触摸操作的当前谜题棋盘" />
 
       <header className="solo-topbar" aria-label="当前谜题状态">
-        <span className="solo-category">{difficultyLabel} {gridSize}</span>
+        <span className="solo-category">{playMode === "daily" ? "每日挑战 8x8" : `${difficultyLabel} ${gridSize}`}</span>
         <span className="solo-timer">◷ {formatTime(state.elapsedMs)}</span>
         <span className="solo-points">Points: {points}</span>
         <button type="button" className={`solo-sound-toggle ${soundEnabled ? "is-enabled" : ""}`} aria-label={soundEnabled ? "音效已开启，点击关闭" : "音效已关闭，点击开启"} aria-pressed={soundEnabled} onClick={() => {
@@ -212,6 +237,7 @@ export default function GameCanvas() {
         <nav className="solo-board-actions" aria-label="棋盘操作">
           <button type="button" onClick={() => handleRef.current?.undo()} disabled={state.path.length === 0 || state.status === "completed"}>↶ 撤回</button>
           <button type="button" onClick={resetCurrentPuzzle}>⌫ 清空</button>
+          <button type="button" className={`daily-challenge-action ${playMode === "daily" ? "is-selected" : ""}`} aria-pressed={playMode === "daily"} onClick={selectDailyChallenge}>每日挑战{dailyCompleted ? " ✓" : ""}</button>
         </nav>
 
         <section className="solo-picker" aria-label="随机谜题选择">
@@ -246,10 +272,10 @@ export default function GameCanvas() {
 
       {state.status === "completed" && (
         <section className="completion-panel solo-completion" role="dialog" aria-modal="true" aria-label="林径完成">
-          <p>TRAIL COMPLETE</p>
-          <h2>林径已走通</h2>
-          <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{points} 积分</span></div>
-          <div className="completion-actions"><button type="button" onClick={resetCurrentPuzzle}>再走一次</button><button type="button" onClick={chooseNextLevel}>{hasRandomNext ? "随机下一题" : "生成新谜题"}</button></div>
+          <p>{playMode === "daily" ? "DAILY CHALLENGE COMPLETE" : "TRAIL COMPLETE"}</p>
+          <h2>{playMode === "daily" ? "今日林径已走通" : "林径已走通"}</h2>
+          <div className="completion-stats"><span>{formatTime(state.elapsedMs)} 用时</span><span>{points} 积分</span>{playMode === "daily" && <span>{dailyChallenge.challengeDate}</span>}</div>
+          <div className="completion-actions"><button type="button" onClick={resetCurrentPuzzle}>再走一次</button><button type="button" onClick={() => playMode === "daily" ? selectRandomPuzzle(gridSize, difficulty) : chooseNextLevel()}>{playMode === "daily" ? "返回随机题" : hasRandomNext ? "随机下一题" : "生成新谜题"}</button></div>
         </section>
       )}
     </main>
