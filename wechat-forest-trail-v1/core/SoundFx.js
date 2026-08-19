@@ -1,12 +1,26 @@
 const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
+const NUMBER_EFFECT_SOURCE = "audio/forest-trail-number-effect.mp3";
 
 class SoundFx {
-  constructor(enabled = true) { this.enabled = enabled; this.context = null; this.backgroundMusic = null; }
-  setEnabled(enabled) { this.enabled = Boolean(enabled); if (this.enabled) this.startBackgroundMusic(); else this.backgroundMusic?.stop?.(); }
+  constructor(enabled = true, volume = .7) {
+    this.enabled = Boolean(enabled); this.backgroundMusic = null; this.numberEffect = null; this.volume = .7; this.setVolume(volume);
+  }
+  setEnabled(enabled) {
+    this.enabled = Boolean(enabled);
+    if (this.enabled) this.startBackgroundMusic(); else { this.backgroundMusic?.stop?.(); this.numberEffect?.stop?.(); }
+  }
+  setVolume(volume) {
+    this.volume = Math.max(.35, Math.min(1, Number(volume) || .7));
+    if (this.backgroundMusic) this.backgroundMusic.volume = .28 * this.volume;
+    if (this.numberEffect) this.numberEffect.volume = .72 * this.volume;
+    return this.volume;
+  }
   ensureBackgroundMusic() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
     try {
-      if (!this.backgroundMusic) { this.backgroundMusic = wx.createInnerAudioContext(); this.backgroundMusic.src = BACKGROUND_MUSIC_SOURCE; this.backgroundMusic.autoplay = false; this.backgroundMusic.loop = true; this.backgroundMusic.volume = .28; this.backgroundMusic.obeyMuteSwitch = false; }
+      if (!this.backgroundMusic) {
+        this.backgroundMusic = wx.createInnerAudioContext(); this.backgroundMusic.src = BACKGROUND_MUSIC_SOURCE; this.backgroundMusic.autoplay = false; this.backgroundMusic.loop = true; this.backgroundMusic.volume = .28 * this.volume; this.backgroundMusic.obeyMuteSwitch = false;
+      }
       return this.backgroundMusic;
     } catch (_) { return null; }
   }
@@ -14,39 +28,29 @@ class SoundFx {
     const audio = this.ensureBackgroundMusic(); if (!audio) return false;
     try { audio.play?.(); return true; } catch (_) { return false; }
   }
-  ensureContext() {
-    if (!this.enabled || typeof wx === "undefined" || !wx.createWebAudioContext) return null;
-    try { this.context ||= wx.createWebAudioContext(); this.context.resume?.(); return this.context; } catch (_) { return null; }
-  }
-  tone(frequency, at = 0, duration = .08, gain = .08, type = "sine") {
-    const context = this.ensureContext(); if (!context?.createOscillator) return;
+  ensureNumberEffect() {
+    if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
     try {
-      const oscillator = context.createOscillator(); const envelope = context.createGain();
-      oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, context.currentTime + at);
-      envelope.gain.setValueAtTime(.0001, context.currentTime + at);
-      envelope.gain.exponentialRampToValueAtTime(gain, context.currentTime + at + .012);
-      envelope.gain.exponentialRampToValueAtTime(.0001, context.currentTime + at + duration);
-      oscillator.connect(envelope); envelope.connect(context.destination); oscillator.start(context.currentTime + at); oscillator.stop(context.currentTime + at + duration + .02);
-    } catch (_) { /* audio is best-effort */ }
+      if (!this.numberEffect) {
+        this.numberEffect = wx.createInnerAudioContext(); this.numberEffect.src = NUMBER_EFFECT_SOURCE; this.numberEffect.autoplay = false; this.numberEffect.loop = false; this.numberEffect.volume = .72 * this.volume; this.numberEffect.obeyMuteSwitch = false;
+      }
+      return this.numberEffect;
+    } catch (_) { return null; }
   }
-  taiko(at = 0, intensity = 1, rim = false) {
-    const context = this.ensureContext(); if (!context?.createOscillator) return;
-    try {
-      const now = context.currentTime + at; const drum = context.createOscillator(); const body = context.createGain();
-      const start = rim ? 380 : 155 + intensity * 28; const end = rim ? 170 : 54;
-      drum.type = rim ? "square" : "sine"; drum.frequency.setValueAtTime(start, now); drum.frequency.exponentialRampToValueAtTime(end, now + (rim ? .035 : .12));
-      body.gain.setValueAtTime(.0001, now); body.gain.exponentialRampToValueAtTime((rim ? .035 : .095) * intensity, now + .006); body.gain.exponentialRampToValueAtTime(.0001, now + (rim ? .045 : .15));
-      drum.connect(body); body.connect(context.destination); drum.start(now); drum.stop(now + .18);
-      if (!rim) this.tone(820, at, .022, .018 * intensity, "square");
-    } catch (_) { /* audio is best-effort */ }
+  playNumberEffect() {
+    const audio = this.ensureNumberEffect(); if (!audio) return false;
+    try { audio.stop?.(); audio.seek?.(0); audio.play?.(); return true; } catch (_) { return false; }
   }
-  tap() { /* 按键不播放音效：鼓声仅用于路标数字触达。 */ }
-  step() { /* 普通连线保持静音；路标触达由 coin() 单独反馈。 */ }
-  coin() { this.tone(980, 0, .028, .032, "triangle"); this.tone(1580, .018, .045, .018, "square"); }
-  undo() { /* 撤回不播放音效。 */ }
-  reset() { /* 清空不播放音效。 */ }
-  complete() { /* 通关由最后一个路标的 coin() 反馈，不重复播放。 */ }
-  destroy() { try { this.backgroundMusic?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; }
+  tap() { /* 按键保持静音。 */ }
+  step() { /* 普通连线保持静音。 */ }
+  coin() { this.playNumberEffect(); }
+  undo() { /* 撤回保持静音。 */ }
+  reset() { /* 清空保持静音。 */ }
+  complete() { /* 通关由最后一个路标的数字音效反馈，不重复播放。 */ }
+  destroy() {
+    try { this.backgroundMusic?.destroy?.(); this.numberEffect?.destroy?.(); } catch (_) { /* audio is best-effort */ }
+    this.backgroundMusic = null; this.numberEffect = null;
+  }
 }
 
 module.exports = { SoundFx };
