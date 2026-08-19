@@ -265,6 +265,8 @@
 
 > `r7` 已接入用户提供的鼓声音频：文件为 MP3、44.1kHz 双声道、6.008秒、145,908字节，源文件 SHA-256 为 `3043564f261ad23f0e1603dd3850905601b2f3ce3a05c479311099c074377616`。构建时将其复制为发布包内的 `assets/forest-trail-user-drum.mp3`；原生环境使用 `wx.createInnerAudioContext()` 从音频起点播放。普通路径延伸保持静音，合法触达当前路标数字、界面按键和通关时均复用该鼓声音频；关闭音效开关后不再调用播放。`pnpm run verify`、题库分包、音频文件校验与发布清单均通过；`r7` 扁平归档 SHA-256 为 `f22e0df9796eed90d74e08c1d5552259a237478b2815cd90e22c42259f414695`。
 
+> `r8` 已将音频替换为用户最新提供的鼓声：MP3、44.1kHz 双声道、2.038秒、50,614字节，源文件 SHA-256 为 `5fcf24b78ea8b226096c6ac5c37c6808d3b64325fe5da56353ae134acda6bb6a`。音频资源仍打包为 `assets/forest-trail-user-drum.mp3`；普通路径延伸、界面按键、撤回、清空和通关均保持静音，只有合法触达当前下一个路标数字时才从音频起点播放该鼓声。原生回归明确断言非数字触达不会初始化或播放音频，且关闭音效开关后不触发播放。`pnpm run verify`、发布清单和资源文件检查均通过；`r8` 扁平归档 SHA-256 为 `b693b63e705894f39b6e09e9a649e1ffc26146d008b7dd67294f00b3113c44e3`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

@@ -40,12 +40,12 @@ class SoundFx {
       if (!rim) this.tone(820, at, .022, .018 * intensity, "square");
     } catch (_) { /* audio is best-effort */ }
   }
-  tap() { if (!this.playUserDrum()) this.taiko(0, .55, true); }
+  tap() { /* 按键不播放音效：鼓声仅用于路标数字触达。 */ }
   step() { /* 普通连线保持静音；路标触达由 coin() 单独反馈。 */ }
-  coin() { if (!this.playUserDrum()) { this.tone(987.77, 0, .055, .055, "square"); this.tone(1318.51, .065, .11, .052, "square"); } }
-  undo() { if (!this.playUserDrum()) this.taiko(0, .5, true); }
-  reset() { if (!this.playUserDrum()) { this.taiko(0, .62); this.taiko(.09, .45, true); } }
-  complete() { if (this.playUserDrum()) return; [[0, 1], [.1, .72], [.2, .86], [.34, 1.18], [.46, .78, true], [.56, 1.25]].forEach(([at, intensity, rim]) => this.taiko(at, intensity, rim)); [[659, .36, .16], [784, .47, .2], [988, .58, .26]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .055, "sine")); }
+  coin() { this.playUserDrum(); }
+  undo() { /* 撤回不播放音效。 */ }
+  reset() { /* 清空不播放音效。 */ }
+  complete() { /* 通关由最后一个路标的 coin() 反馈，不重复播放。 */ }
   destroy() { try { this.userDrum?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.userDrum = null; }
 }
 
