@@ -285,6 +285,8 @@
 
 > `r17` 修复微信开发者工具报出的 `loadSubpackage:fail module not found`。根因是 `catalog/game.js` 与 `audio/game.js` 两个普通分包入口使用了 CommonJS 模块导出，触发加载器的模块解析失败。构建脚本现将二者输出为不依赖模块导出的纯入口脚本；主包在分包加载完成后使用显式的 `require("./catalog/launchCatalog.js")` 读取题库。全量原生回归通过，构建后确认两个分包入口均不含 `module.exports`、题库模块显式扩展名存在，且归档内分包入口与资源完整。`r17` 扁平归档 SHA-256 为 `f7c1d0e35812edc3f4f7567a5331c7ed80f1bfaa686be1b6632682528e117851`。
 
+> `r18` 新增参考图风格的原生通关成绩弹窗：展示本局用时、真实本地最佳成绩、连续通关和排行榜入口，并提供关闭按钮。好友与总榜在未授权/未部署时仅显示明确状态，不生成虚构名次。客户端已配置云环境 `cloud1-d7g6hjrq143bf0450`，通关时会将派生分数写入微信托管数据键 `forest_trail_rank_score_v1`，并在开放数据域内通过 `wx.getFriendCloudStorage` 绘制真实好友榜；总榜通过云函数 `submitGameResult` 使用云端微信上下文识别玩家，客户端不传 OpenID。发布包包含 `open-data/index.js`、两个云函数、复合索引说明及部署指南。全量原生测试覆盖成功、未授权、服务不可用、开放数据域消息和无伪造名次的边界，均通过；云函数尚需由管理员在微信开发者工具部署并用真实账号验证。`r18` 扁平归档 SHA-256 为 `d2fceef89d94428bace494a8c9b14dc0b8987375b86a160e611ff22b8965e62c`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

@@ -29,6 +29,7 @@ game.selectDaily(); assert.equal(game.mode, "daily"); assert.equal(game.current.
 game.current.solution.forEach((cell) => game.engine.tryMove(cell));
 assert.equal(game.progress.isDailyComplete(game.current), true);
 const completionView = game.view(); assert.ok(completionView.completion.best.elapsedMs >= 0, "通关弹窗应提供真实本地最佳成绩"); assert.ok(completionView.completion.streak >= 1, "通关弹窗应提供真实连续通关次数"); assert.equal(completionView.rankings.friend.state, "authorization-required", "未授权时不得伪造好友排名"); assert.equal(completionView.rankings.global.state, "service-required", "未接入服务时不得伪造总榜排名"); assert.ok(game.renderer.controls.leaderboard, "通关弹窗应提供排行榜入口");
+assert.ok(game.renderer.controls.close, "通关弹窗应提供关闭入口"); game.handleStart({ touches:[{ clientX: game.renderer.controls.close.x + 2, clientY: game.renderer.controls.close.y + 2 }] }); assert.equal(game.view().completionVisible, false, "关闭入口应只关闭弹窗，不修改通关结果"); game.renderer.render(game.engine.getSnapshot(), { ...game.view(), completionVisible: true });
 game.handleStart({ touches:[{ clientX: game.renderer.controls.leaderboard.x + 2, clientY: game.renderer.controls.leaderboard.y + 2 }] }); assert.equal(toasts.at(-1).title, "好友排名待微信授权", "排行榜入口应提示真实授权要求");
 game.handleStart({ touches:[{ clientX: game.renderer.controls.sound.x + 2, clientY: game.renderer.controls.sound.y + 2 }] });
 assert.equal(game.progress.soundEnabled(), false);
