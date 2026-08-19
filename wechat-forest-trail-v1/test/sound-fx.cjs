@@ -5,9 +5,10 @@ const backgroundMusic = { set src(value) { backgroundEvents.push(`src:${value}`)
 const makeOscillator = () => ({ frequency: { setValueAtTime() {} }, connect() {}, start(at) { oscillators.push(at); }, stop() {}, set type(_) {} });
 const makeGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
 global.wx = { createInnerAudioContext: () => backgroundMusic, createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
-const { SoundFx } = require("../core/SoundFx");
+const { SoundFx, BACKGROUND_MUSIC_VOLUME } = require("../core/SoundFx");
 const sound = new SoundFx(true); sound.startBackgroundMusic();
-assert.deepEqual(backgroundEvents.slice(0, 6), ["src:audio/forest-trail-background.mp3", "autoplay:false", "loop:true", "volume:0.28", "obeyMuteSwitch:false", "play"], "背景音乐应继续循环播放");
+assert.equal(BACKGROUND_MUSIC_VOLUME, .364, "背景音乐基础音量应在0.28基础上提高30%");
+assert.deepEqual(backgroundEvents.slice(0, 6), ["src:audio/forest-trail-background.mp3", "autoplay:false", "loop:true", "volume:0.364", "obeyMuteSwitch:false", "play"], "背景音乐应以提高30%的音量继续循环播放");
 sound.step(); sound.tap(); sound.undo(); sound.reset(); sound.complete(); assert.equal(oscillators.length, 0, "普通连线和其他操作均必须静音");
 sound.coin(); assert.deepEqual(oscillators, [0, .09, .19], "数字触达应播放三段现代日历提醒风格提示");
 sound.setEnabled(false); assert.equal(backgroundEvents.at(-1), "stop", "关闭音效应停止背景音乐"); const beforeMuted = oscillators.length; sound.coin(); assert.equal(oscillators.length, beforeMuted, "关闭音效后不得播放数字提示");

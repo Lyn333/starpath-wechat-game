@@ -277,6 +277,8 @@
 
 > `r13` 已将用户最新提供的背景音乐替换进 `audio/forest-trail-background.mp3`。资源为 MP3、44.1kHz 单声道、151.092秒、3,627,063字节，SHA-256 为 `4dc5f79eee1a968dc8db733d6d1841d272ff333bbd18ddcc96963708228a52a7`。全量原生验证通过，构建后以二进制比较确认发布目录音频文件与用户提供资源完全一致；发布清单同时记录 3,627,063 字节循环背景音乐。顶部音效开关继续负责启动与停止循环播放，数字触达提示与普通连线静音规则未变。`r13` 扁平归档 SHA-256 为 `facd234b0d953e71b1c12b020f2fa9e74c3074ce1bf26fcb6eb11ded8386bc4b`。
 
+> `r14` 将原生 `SoundFx` 的背景音乐基础音量从 `0.28` 提高 30% 至 `0.364`。音效专项回归断言音量常量与微信音频上下文赋值均为 `0.364`，并继续验证关闭音效会停止循环背景音乐、重新开启会恢复播放、普通连线和其他操作保持静音、数字触达提示不受影响。全量原生验证及发布包内 `SoundFx.js` 常量检查均通过。`r14` 扁平归档 SHA-256 为 `7d66b7a7fe73b52f52535ccd8c01f4fe2315f7425d584d6b07242e955a913d7a`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

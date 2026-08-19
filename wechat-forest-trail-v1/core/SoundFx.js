@@ -1,5 +1,7 @@
 const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
 
+const BACKGROUND_MUSIC_VOLUME = .364;
+
 class SoundFx {
   constructor(enabled = true) { this.enabled = Boolean(enabled); this.context = null; this.backgroundMusic = null; }
   setEnabled(enabled) { this.enabled = Boolean(enabled); if (this.enabled) this.startBackgroundMusic(); else this.backgroundMusic?.stop?.(); }
@@ -7,7 +9,7 @@ class SoundFx {
     if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
     try {
       if (!this.backgroundMusic) {
-        this.backgroundMusic = wx.createInnerAudioContext(); this.backgroundMusic.src = BACKGROUND_MUSIC_SOURCE; this.backgroundMusic.autoplay = false; this.backgroundMusic.loop = true; this.backgroundMusic.volume = .28; this.backgroundMusic.obeyMuteSwitch = false;
+        this.backgroundMusic = wx.createInnerAudioContext(); this.backgroundMusic.src = BACKGROUND_MUSIC_SOURCE; this.backgroundMusic.autoplay = false; this.backgroundMusic.loop = true; this.backgroundMusic.volume = BACKGROUND_MUSIC_VOLUME; this.backgroundMusic.obeyMuteSwitch = false;
       }
       return this.backgroundMusic;
     } catch (_) { return null; }
@@ -34,4 +36,4 @@ class SoundFx {
   destroy() { try { this.backgroundMusic?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; this.context = null; }
 }
 
-module.exports = { SoundFx };
+module.exports = { SoundFx, BACKGROUND_MUSIC_VOLUME };
