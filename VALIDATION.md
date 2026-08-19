@@ -257,6 +257,8 @@
 
 > 后续已将发布配置更新为 `wx42d447652d8a5d07` 并重新构建。题库普通分包现包含微信要求的 `catalog/game.js` 入口与 `catalog/launchCatalog.js` 数据模块；原生包校验再次通过。真机预览、体验版和提审仍由账号管理员在微信开发者工具与后台完成。
 
+> 真机预览曾报告 `CanvasRenderingContext2D.roundRect` 的半径参数不兼容。已将所有原生 UI 圆角改为基于 `moveTo`、`lineTo` 和 `quadraticCurveTo` 的手工路径，不再调用 `roundRect`；`r3` 归档已通过原生流程、题库和分包入口复核（SHA-256：`dfbbb076810e384b170191b729bef9349af069fe5d15eb9f92690820a65198e8`）。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

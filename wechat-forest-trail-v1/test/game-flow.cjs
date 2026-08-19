@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const storage = new Map();
 const noOp = () => undefined;
-const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, fillText:noOp, setTransform:noOp, roundRect:noOp, scale:noOp, set lineWidth(_){}, set lineCap(_){}, set strokeStyle(_){}, set fillStyle(_){}, set font(_){}, set textAlign(_){}, set textBaseline(_){} };
+const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, quadraticCurveTo:noOp, fillText:noOp, setTransform:noOp, scale:noOp, set lineWidth(_){}, set lineCap(_){}, set strokeStyle(_){}, set fillStyle(_){}, set font(_){}, set textAlign(_){}, set textBaseline(_){} };
 global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }), getStorageSync: (key) => storage.get(key), setStorageSync: (key, value) => storage.set(key, value) };
 const { ForestTrailMiniGame } = require("../core/GameFlow");
 const sample = { id:"sample-6", title:"样例", gridSize:"6x6", difficulty:"easy", rows:6, cols:6, waypoints:[{number:1,cell:{row:0,col:0}},{number:2,cell:{row:5,col:5}}], walls:[], solution:Array.from({length:36},(_,index)=>({row:Math.floor(index/6),col:Math.floor(index/6)%2?5-index%6:index%6})) };

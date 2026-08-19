@@ -8,7 +8,17 @@ class SingleBoardRenderer {
     const size = this.level.rows; const top = 68; const footer = 154; const cell = Math.floor(Math.min((this.width - 38) / size, (this.height - top - footer) / size));
     const width = cell * size; return { cell, width, left: Math.round((this.width - width) / 2), top };
   }
-  rounded(x, y, width, height, radius, fill, stroke) { const c = this.ctx; c.beginPath(); c.roundRect ? c.roundRect(x, y, width, height, radius) : c.rect(x, y, width, height); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.stroke(); } }
+  rounded(x, y, width, height, radius, fill, stroke) {
+    const c = this.ctx; const r = Math.max(0, Math.min(radius, width / 2, height / 2)); c.beginPath();
+    if (!r || !c.quadraticCurveTo) c.rect(x, y, width, height);
+    else {
+      c.moveTo(x + r, y); c.lineTo(x + width - r, y); c.quadraticCurveTo(x + width, y, x + width, y + r);
+      c.lineTo(x + width, y + height - r); c.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      c.lineTo(x + r, y + height); c.quadraticCurveTo(x, y + height, x, y + height - r);
+      c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y);
+    }
+    if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.stroke(); }
+  }
   render(snapshot, view) {
     const c = this.ctx; c.clearRect(0, 0, this.width, this.height); this.drawSky(); this.drawHeader(snapshot, view); this.drawBoard(snapshot); this.drawControls(snapshot, view); if (snapshot.status === "completed") this.drawCompletion(snapshot, view); }
   drawSky() { const c = this.ctx; c.fillStyle = "#67C8F4"; c.fillRect(0, 0, this.width, this.height); c.fillStyle = "rgba(255,255,255,.8)"; [[42,105,34],[this.width-58,140,28],[this.width*.26, this.height-108,30]].forEach(([x,y,r]) => { c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.arc(x+r*.75,y+5,r*.7,0,Math.PI*2); c.arc(x-r*.75,y+7,r*.65,0,Math.PI*2); c.fill(); }); }
