@@ -4,7 +4,7 @@
   "setting": { "es6": true, "enhance": true, "postcss": false, "minified": true, "urlCheck": true },
   "compileType": "game",
   "libVersion": "3.6.2",
-  "appid": "wxfbb4fe883a9920e3",
+  "appid": "wx42d447652d8a5d07",
   "projectname": "森林寻径 v1.0",
   "miniprogramRoot": "./"
 }
