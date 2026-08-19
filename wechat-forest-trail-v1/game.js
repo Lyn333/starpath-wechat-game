@@ -1,12 +1,18 @@
 const { ForestTrailMiniGame } = require("./core/GameFlow");
-
+const { OpeningSequence } = require("./core/OpeningSequence");
 const canvas = wx.createCanvas();
 let game = null;
+let opening = null;
+
+function beginGame(levels, metadata) {
+  game = new ForestTrailMiniGame(canvas, levels);
+  console.log(`森林寻径微信版已载入 ${metadata.totalLevels} 道首发关卡。`);
+}
 
 function start() {
   const { LEVELS, LEVEL_BUNDLE_METADATA } = require("./catalog/launchCatalog");
-  game = new ForestTrailMiniGame(canvas, LEVELS);
-  console.log(`森林寻径微信版已载入 ${LEVEL_BUNDLE_METADATA.totalLevels} 道首发关卡。`);
+  opening = new OpeningSequence(canvas, { onComplete: () => { opening = null; beginGame(LEVELS, LEVEL_BUNDLE_METADATA); } });
+  opening.start();
 }
 
 function loadCatalog() {
@@ -19,11 +25,11 @@ function loadAudioThenCatalog() {
   wx.loadSubpackage({ name: "audio", success: loadCatalog, fail: (error) => { console.error("背景音乐加载失败，将以静音模式启动", error); loadCatalog(); } });
 }
 
-wx.onTouchStart((event) => game?.handleStart(event));
+wx.onTouchStart((event) => { if (opening?.active) return opening.skip(); game?.handleStart(event); });
 wx.onTouchMove((event) => game?.handleMove(event));
 wx.onTouchEnd(() => game?.handleEnd());
 wx.onTouchCancel(() => game?.handleEnd());
-if (wx.onWindowResize) wx.onWindowResize(() => game?.resize());
+if (wx.onWindowResize) wx.onWindowResize(() => { opening?.resize(); game?.resize(); });
 loadAudioThenCatalog();
 
-module.exports = { get game() { return game; } };
+module.exports = { get game() { return game; }, get opening() { return opening; } };

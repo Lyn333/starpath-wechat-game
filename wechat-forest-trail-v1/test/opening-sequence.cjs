@@ -1,0 +1,12 @@
+const assert = require("node:assert/strict");
+let now = 0; const frames = []; const labels = []; let completed = 0;
+const noOp = () => undefined;
+const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, bezierCurveTo:noOp, fillText(text) { labels.push(text); }, set globalAlpha(_) {}, set fillStyle(_) {}, set strokeStyle(_) {}, set lineWidth(_) {}, set lineCap(_) {}, set font(_) {}, set textAlign(_) {} };
+global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844 }) };
+const { OpeningSequence } = require("../core/OpeningSequence");
+const opening = new OpeningSequence({ getContext: () => context }, { duration: 100, now: () => now, schedule: (callback) => { frames.push(callback); return frames.length; }, cancel: () => {}, onComplete: () => { completed += 1; } });
+assert.equal(opening.start(), true, "开场动画应能启动"); assert.equal(opening.active, true); assert.ok(labels.includes("森林寻径"), "首帧应绘制游戏标题"); assert.equal(frames.length, 1, "开场动画应安排下一帧");
+now = 40; frames.shift()(); assert.equal(opening.active, true, "时间线中段不应提前结束"); assert.equal(completed, 0);
+assert.equal(opening.skip(), true, "轻触开场时应可跳过"); assert.equal(opening.completed, true); assert.equal(opening.active, false); assert.equal(completed, 1, "跳过应只触发一次开始游戏回调"); assert.equal(opening.skip(), false, "完成后不得重复跳过或重复回调");
+frames.length = 0; now = 0; const completedOpening = new OpeningSequence({ getContext: () => context }, { duration: 100, now: () => now, schedule: (callback) => { frames.push(callback); return frames.length; }, cancel: () => {}, onComplete: () => { completed += 1; } }); completedOpening.start(); now = 100; frames.shift()(); assert.equal(completedOpening.completed, true, "时间线结束应自动进入游戏"); assert.equal(completed, 2, "自然结束同样只触发一次回调");
+console.log("开场动画时间线、跳过和完成回调校验通过");
