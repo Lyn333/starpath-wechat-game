@@ -1,0 +1,10 @@
+const assert = require("node:assert/strict");
+const started = [];
+const makeOscillator = () => ({ frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, start(at) { started.push(at); }, stop() {}, set type(_) {} });
+const makeGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
+global.wx = { createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
+const { SoundFx } = require("../core/SoundFx");
+const sound = new SoundFx(true); sound.step(); sound.tap(); sound.complete();
+assert.ok(started.length >= 10, "步进、按键和通关应产生多层太鼓节奏");
+const beforeMute = started.length; sound.setEnabled(false); sound.step(); assert.equal(started.length, beforeMute, "关闭音效后不得继续创建鼓点");
+console.log("太鼓风格音效校验通过");

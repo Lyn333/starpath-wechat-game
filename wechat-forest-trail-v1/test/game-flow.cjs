@@ -8,6 +8,9 @@ const sample = { id:"sample-6", title:"样例", gridSize:"6x6", difficulty:"easy
 const canvas = { getContext: () => context };
 const game = new ForestTrailMiniGame(canvas, [sample]);
 assert.equal(game.current.id, "sample-6");
+assert.ok(Math.abs((game.renderer.board.top + game.renderer.board.width / 2) - 422) <= 2);
+assert.equal(game.renderer.controls.difficulties[0].y - (game.renderer.controls.undo.y + game.renderer.controls.undo.height), game.renderer.board.controlGap);
+assert.equal(game.renderer.controls.sizes[0].y - (game.renderer.controls.difficulties[0].y + game.renderer.controls.difficulties[0].height), game.renderer.board.controlGap);
 game.selectDaily(); assert.equal(game.mode, "daily"); assert.equal(game.current.gridSize, "8x8");
 game.current.solution.forEach((cell) => game.engine.tryMove(cell));
 assert.equal(game.progress.isDailyComplete(game.current), true);

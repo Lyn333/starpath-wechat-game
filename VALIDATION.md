@@ -259,6 +259,8 @@
 
 > 真机预览曾报告 `CanvasRenderingContext2D.roundRect` 的半径参数不兼容。已将所有原生 UI 圆角改为基于 `moveTo`、`lineTo` 和 `quadraticCurveTo` 的手工路径，不再调用 `roundRect`；`r3` 归档已通过原生流程、题库和分包入口复核（SHA-256：`dfbbb076810e384b170191b729bef9349af069fe5d15eb9f92690820a65198e8`）。
 
+> 根据真机截图反馈，原生竖屏棋盘现在以屏幕视觉中心为锚点，避免贴近顶部；操作、难度与尺寸三行共用 16px 垂直节奏。`game-flow.cjs` 已断言棋盘中心与 390×844 视口中心对齐，且两段行间距相等。音效模块同步改为合成低频鼓面、短促击点与通关节奏的太鼓风格反馈，并保留音效开关。原生全量校验与扁平根目录 `r5` 归档验证通过（SHA-256：`aac348e63859d309e1a972299ee8d18168f9d539852ee39ca7872e5c4d6c1562`）。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

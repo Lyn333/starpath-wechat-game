@@ -16,11 +16,22 @@ class SoundFx {
       oscillator.connect(envelope); envelope.connect(context.destination); oscillator.start(context.currentTime + at); oscillator.stop(context.currentTime + at + duration + .02);
     } catch (_) { /* audio is best-effort */ }
   }
-  tap() { this.tone(660, 0, .05, .05, "square"); }
-  step() { this.tone(420, 0, .045, .035, "sine"); }
-  undo() { this.tone(310, 0, .06, .04, "triangle"); }
-  reset() { this.tone(240, 0, .08, .05, "triangle"); }
-  complete() { [[392, 0, .1], [494, .09, .12], [587, .18, .14], [784, .27, .19], [659, .27, .19], [988, .42, .24]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .07, "sine")); }
+  taiko(at = 0, intensity = 1, rim = false) {
+    const context = this.ensureContext(); if (!context?.createOscillator) return;
+    try {
+      const now = context.currentTime + at; const drum = context.createOscillator(); const body = context.createGain();
+      const start = rim ? 380 : 155 + intensity * 28; const end = rim ? 170 : 54;
+      drum.type = rim ? "square" : "sine"; drum.frequency.setValueAtTime(start, now); drum.frequency.exponentialRampToValueAtTime(end, now + (rim ? .035 : .12));
+      body.gain.setValueAtTime(.0001, now); body.gain.exponentialRampToValueAtTime((rim ? .035 : .095) * intensity, now + .006); body.gain.exponentialRampToValueAtTime(.0001, now + (rim ? .045 : .15));
+      drum.connect(body); body.connect(context.destination); drum.start(now); drum.stop(now + .18);
+      if (!rim) this.tone(820, at, .022, .018 * intensity, "square");
+    } catch (_) { /* audio is best-effort */ }
+  }
+  tap() { this.taiko(0, .55, true); }
+  step() { this.taiko(0, .72); }
+  undo() { this.taiko(0, .5, true); }
+  reset() { this.taiko(0, .62); this.taiko(.09, .45, true); }
+  complete() { [[0, 1], [.1, .72], [.2, .86], [.34, 1.18], [.46, .78, true], [.56, 1.25]].forEach(([at, intensity, rim]) => this.taiko(at, intensity, rim)); [[659, .36, .16], [784, .47, .2], [988, .58, .26]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .055, "sine")); }
 }
 
 module.exports = { SoundFx };
