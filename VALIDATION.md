@@ -283,6 +283,8 @@
 
 > `r16` 将背景音乐基础音量在 `r15` 的 `0.364` 基础上再提高 30% 至 `0.4732`。音效专项回归断言该常量及微信音频上下文赋值均为 `0.4732`，并继续验证音效开关可停止和恢复循环背景音乐，开场、加粗绿色渐变路径、数字触达提示与普通连线静音均未改变。全量原生验证与发布包内常量检查均通过。`r16` 扁平归档 SHA-256 为 `1481be27f964d389749821b7c121a256b14848ab1116ebafd107d16ddb317cb9`。
 
+> `r17` 修复微信开发者工具报出的 `loadSubpackage:fail module not found`。根因是 `catalog/game.js` 与 `audio/game.js` 两个普通分包入口使用了 CommonJS 模块导出，触发加载器的模块解析失败。构建脚本现将二者输出为不依赖模块导出的纯入口脚本；主包在分包加载完成后使用显式的 `require("./catalog/launchCatalog.js")` 读取题库。全量原生回归通过，构建后确认两个分包入口均不含 `module.exports`、题库模块显式扩展名存在，且归档内分包入口与资源完整。`r17` 扁平归档 SHA-256 为 `f7c1d0e35812edc3f4f7567a5331c7ed80f1bfaa686be1b6632682528e117851`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

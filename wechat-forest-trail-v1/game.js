@@ -10,7 +10,7 @@ function beginGame(levels, metadata) {
 }
 
 function start() {
-  const { LEVELS, LEVEL_BUNDLE_METADATA } = require("./catalog/launchCatalog");
+  const { LEVELS, LEVEL_BUNDLE_METADATA } = require("./catalog/launchCatalog.js");
   opening = new OpeningSequence(canvas, { onComplete: () => { opening = null; beginGame(LEVELS, LEVEL_BUNDLE_METADATA); } });
   opening.start();
 }

@@ -43,10 +43,10 @@ export async function buildMiniGamePackage({ destination = outputDir } = {}) {
   await cp(sourceDir, destination, { recursive: true, filter: (entry) => !entry.includes(`${path.sep}test`) && !entry.includes(`${path.sep}scripts`) && !entry.includes(`${path.sep}node_modules`) });
   await mkdir(path.join(destination, "audio"), { recursive: true });
   await cp(backgroundMusicSource, path.join(destination, "audio", "forest-trail-background.mp3"));
-  await writeFile(path.join(destination, "audio", "game.js"), "/** 微信普通分包入口：背景音乐资源。 */\nmodule.exports = {};\n");
+  await writeFile(path.join(destination, "audio", "game.js"), "/** 微信普通分包入口：背景音乐资源。请勿使用 CommonJS 模块导出。 */\nconsole.log(\"森林寻径背景音乐分包已加载\");\n");
   await mkdir(path.join(destination, "catalog"), { recursive: true });
   const metadata = { version: "1.0.0", totalLevels: levels.length, difficultyTotals: totals, generatedAt: new Date().toISOString(), source: "forest-trail-launch-catalog-v1" };
-  await writeFile(path.join(destination, "catalog", "game.js"), "/** 微信普通分包入口：题库在主包请求加载完成后按需 require。 */\nmodule.exports = {};\n");
+  await writeFile(path.join(destination, "catalog", "game.js"), "/** 微信普通分包入口：题库在主包请求加载完成后按需 require。请勿使用 CommonJS 模块导出。 */\nconsole.log(\"森林寻径首发题库分包已加载\");\n");
   await writeFile(path.join(destination, "catalog", "launchCatalog.js"), `/** 自动生成的首发题库分包，请勿手动编辑。 */\nconst LEVEL_BUNDLE_METADATA = ${JSON.stringify(metadata)};\nconst LEVELS = ${JSON.stringify(levels)};\nmodule.exports = { LEVEL_BUNDLE_METADATA, LEVELS };\n`);
   const packageSize = (await stat(path.join(destination, "catalog", "launchCatalog.js"))).size;
   await stat(path.join(destination, "catalog", "game.js"));
