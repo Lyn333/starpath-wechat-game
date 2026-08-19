@@ -15,7 +15,7 @@ function formatTime(ms) { const seconds = Math.floor(ms / 1000); return `${Math.
 class ForestTrailMiniGame {
   constructor(canvas, levels) {
     this.canvas = canvas; this.levels = levels; this.progress = new ProgressStore(); this.sound = new SoundFx(this.progress.soundEnabled());
-    this.renderer = new SingleBoardRenderer(canvas); this.gridSize = "6x6"; this.difficulty = "easy"; this.mode = "standard"; this.dragCell = null; this.startedAt = Date.now(); this.current = this.pickRandom(); this.start(this.current);
+    this.renderer = new SingleBoardRenderer(canvas); this.gridSize = "6x6"; this.difficulty = "easy"; this.mode = "standard"; this.dragCell = null; this.startedAt = Date.now(); this.current = this.pickRandom(); this.start(this.current); this.sound.startBackgroundMusic();
   }
   pickRandom(excludeId) {
     const choices = this.levels.filter((level) => level.gridSize === this.gridSize && level.difficulty === this.difficulty && level.id !== excludeId && !this.progress.isCompleted(level.id));

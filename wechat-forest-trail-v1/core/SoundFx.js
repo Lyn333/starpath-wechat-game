@@ -1,18 +1,18 @@
-const USER_DRUM_SOURCE = "assets/forest-trail-user-drum.mp3";
+const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
 
 class SoundFx {
-  constructor(enabled = true) { this.enabled = enabled; this.context = null; this.userDrum = null; }
-  setEnabled(enabled) { this.enabled = Boolean(enabled); }
-  ensureUserDrum() {
+  constructor(enabled = true) { this.enabled = enabled; this.context = null; this.backgroundMusic = null; }
+  setEnabled(enabled) { this.enabled = Boolean(enabled); if (this.enabled) this.startBackgroundMusic(); else this.backgroundMusic?.stop?.(); }
+  ensureBackgroundMusic() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
     try {
-      if (!this.userDrum) { this.userDrum = wx.createInnerAudioContext(); this.userDrum.src = USER_DRUM_SOURCE; this.userDrum.autoplay = false; this.userDrum.obeyMuteSwitch = false; }
-      return this.userDrum;
+      if (!this.backgroundMusic) { this.backgroundMusic = wx.createInnerAudioContext(); this.backgroundMusic.src = BACKGROUND_MUSIC_SOURCE; this.backgroundMusic.autoplay = false; this.backgroundMusic.loop = true; this.backgroundMusic.volume = .28; this.backgroundMusic.obeyMuteSwitch = false; }
+      return this.backgroundMusic;
     } catch (_) { return null; }
   }
-  playUserDrum() {
-    const audio = this.ensureUserDrum(); if (!audio) return false;
-    try { audio.stop?.(); audio.seek?.(0); audio.play?.(); return true; } catch (_) { return false; }
+  startBackgroundMusic() {
+    const audio = this.ensureBackgroundMusic(); if (!audio) return false;
+    try { audio.play?.(); return true; } catch (_) { return false; }
   }
   ensureContext() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createWebAudioContext) return null;
@@ -42,11 +42,11 @@ class SoundFx {
   }
   tap() { /* 按键不播放音效：鼓声仅用于路标数字触达。 */ }
   step() { /* 普通连线保持静音；路标触达由 coin() 单独反馈。 */ }
-  coin() { this.playUserDrum(); }
+  coin() { this.tone(980, 0, .028, .032, "triangle"); this.tone(1580, .018, .045, .018, "square"); }
   undo() { /* 撤回不播放音效。 */ }
   reset() { /* 清空不播放音效。 */ }
   complete() { /* 通关由最后一个路标的 coin() 反馈，不重复播放。 */ }
-  destroy() { try { this.userDrum?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.userDrum = null; }
+  destroy() { try { this.backgroundMusic?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; }
 }
 
 module.exports = { SoundFx };

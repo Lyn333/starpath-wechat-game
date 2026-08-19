@@ -14,11 +14,16 @@ function loadCatalog() {
   wx.loadSubpackage({ name: "catalog", success: start, fail: (error) => console.error("首发题库加载失败", error) });
 }
 
+function loadAudioThenCatalog() {
+  if (!wx.loadSubpackage) return loadCatalog();
+  wx.loadSubpackage({ name: "audio", success: loadCatalog, fail: (error) => { console.error("背景音乐加载失败，将以静音模式启动", error); loadCatalog(); } });
+}
+
 wx.onTouchStart((event) => game?.handleStart(event));
 wx.onTouchMove((event) => game?.handleMove(event));
 wx.onTouchEnd(() => game?.handleEnd());
 wx.onTouchCancel(() => game?.handleEnd());
 if (wx.onWindowResize) wx.onWindowResize(() => game?.resize());
-loadCatalog();
+loadAudioThenCatalog();
 
 module.exports = { get game() { return game; } };

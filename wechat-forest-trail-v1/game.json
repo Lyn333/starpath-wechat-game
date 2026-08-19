@@ -2,6 +2,7 @@
   "deviceOrientation": "portrait",
   "showStatusBar": false,
   "subpackages": [
-    { "name": "catalog", "root": "catalog/" }
+    { "name": "catalog", "root": "catalog/" },
+    { "name": "audio", "root": "audio/" }
   ]
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const sourceDir = path.resolve(scriptDir, "..");
 const catalogSource = "/home/ubuntu/webdev-static-assets/forest-trail-launch-catalog-v1.json";
-const userDrumSource = "/home/ubuntu/webdev-static-assets/forest-trail-audio/forest-trail-user-drum.mp3";
+const backgroundMusicSource = "/home/ubuntu/webdev-static-assets/forest-trail-audio/forest-trail-background.mp3";
 const outputDir = process.env.WECHAT_OUTPUT_DIR || "/home/ubuntu/wechat-forest-trail-v1-release";
 
 function toNativeWall(wall) {
@@ -41,17 +41,18 @@ export async function buildMiniGamePackage({ destination = outputDir } = {}) {
 
   await rm(destination, { recursive: true, force: true });
   await cp(sourceDir, destination, { recursive: true, filter: (entry) => !entry.includes(`${path.sep}test`) && !entry.includes(`${path.sep}scripts`) && !entry.includes(`${path.sep}node_modules`) });
-  await mkdir(path.join(destination, "assets"), { recursive: true });
-  await cp(userDrumSource, path.join(destination, "assets", "forest-trail-user-drum.mp3"));
+  await mkdir(path.join(destination, "audio"), { recursive: true });
+  await cp(backgroundMusicSource, path.join(destination, "audio", "forest-trail-background.mp3"));
+  await writeFile(path.join(destination, "audio", "game.js"), "/** 微信普通分包入口：背景音乐资源。 */\nmodule.exports = {};\n");
   await mkdir(path.join(destination, "catalog"), { recursive: true });
   const metadata = { version: "1.0.0", totalLevels: levels.length, difficultyTotals: totals, generatedAt: new Date().toISOString(), source: "forest-trail-launch-catalog-v1" };
   await writeFile(path.join(destination, "catalog", "game.js"), "/** 微信普通分包入口：题库在主包请求加载完成后按需 require。 */\nmodule.exports = {};\n");
   await writeFile(path.join(destination, "catalog", "launchCatalog.js"), `/** 自动生成的首发题库分包，请勿手动编辑。 */\nconst LEVEL_BUNDLE_METADATA = ${JSON.stringify(metadata)};\nconst LEVELS = ${JSON.stringify(levels)};\nmodule.exports = { LEVEL_BUNDLE_METADATA, LEVELS };\n`);
   const packageSize = (await stat(path.join(destination, "catalog", "launchCatalog.js"))).size;
   await stat(path.join(destination, "catalog", "game.js"));
-  const userDrumBytes = (await stat(path.join(destination, "assets", "forest-trail-user-drum.mp3"))).size;
-  await writeFile(path.join(destination, "release-manifest.json"), JSON.stringify({ ...metadata, packageSizeBytes: packageSize, appIdStatus: "configured-wx42d447652d8a5d07", audio: { source: "user-provided-drum", path: "assets/forest-trail-user-drum.mp3", bytes: userDrumBytes } }, null, 2));
-  console.log(`已生成微信小游戏发布包：${destination}\n主包代码已与 ${packageSize} 字节首发题库分离；已包含 ${userDrumBytes} 字节用户鼓声音效。`);
+  const backgroundMusicBytes = (await stat(path.join(destination, "audio", "forest-trail-background.mp3"))).size;
+  await writeFile(path.join(destination, "release-manifest.json"), JSON.stringify({ ...metadata, packageSizeBytes: packageSize, appIdStatus: "configured-wx42d447652d8a5d07", audio: { backgroundMusic: { source: "user-provided-music", path: "audio/forest-trail-background.mp3", bytes: backgroundMusicBytes, loop: true }, numberEffect: { source: "synthesized-card-snap", trigger: "next-waypoint-only" } } }, null, 2));
+  console.log(`已生成微信小游戏发布包：${destination}\n主包代码已与 ${packageSize} 字节首发题库分离；已包含 ${backgroundMusicBytes} 字节循环背景音乐分包。`);
   return { destination, metadata, packageSize };
 }
 
