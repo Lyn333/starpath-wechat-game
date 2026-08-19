@@ -1,6 +1,6 @@
 const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
 
-const BACKGROUND_MUSIC_VOLUME = .364;
+const BACKGROUND_MUSIC_VOLUME = .4732;
 
 class SoundFx {
   constructor(enabled = true) { this.enabled = Boolean(enabled); this.context = null; this.backgroundMusic = null; }
