@@ -45,7 +45,7 @@ class ForestTrailMiniGame {
   handleMove(event) { const point = pointFrom(event); if (!point || this.engine.getSnapshot().status === "completed") return; const cell = this.renderer.toCell(point); if (!cell) return; const key = `${cell.row}:${cell.col}`; if (key === this.dragCell) return; if (this.moveTo(cell)) this.dragCell = key; }
   handleEnd() { this.dragCell = null; }
   resize() { this.renderer.resize(); this.render(); }
-  destroy() { this.unsubscribe?.(); }
+  destroy() { this.unsubscribe?.(); this.sound.destroy?.(); }
 }
 
 module.exports = { ForestTrailMiniGame, formatTime };

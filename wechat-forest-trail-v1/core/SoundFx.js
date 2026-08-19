@@ -1,6 +1,19 @@
+const USER_DRUM_SOURCE = "assets/forest-trail-user-drum.mp3";
+
 class SoundFx {
-  constructor(enabled = true) { this.enabled = enabled; this.context = null; }
+  constructor(enabled = true) { this.enabled = enabled; this.context = null; this.userDrum = null; }
   setEnabled(enabled) { this.enabled = Boolean(enabled); }
+  ensureUserDrum() {
+    if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
+    try {
+      if (!this.userDrum) { this.userDrum = wx.createInnerAudioContext(); this.userDrum.src = USER_DRUM_SOURCE; this.userDrum.autoplay = false; this.userDrum.obeyMuteSwitch = false; }
+      return this.userDrum;
+    } catch (_) { return null; }
+  }
+  playUserDrum() {
+    const audio = this.ensureUserDrum(); if (!audio) return false;
+    try { audio.stop?.(); audio.seek?.(0); audio.play?.(); return true; } catch (_) { return false; }
+  }
   ensureContext() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createWebAudioContext) return null;
     try { this.context ||= wx.createWebAudioContext(); this.context.resume?.(); return this.context; } catch (_) { return null; }
@@ -27,12 +40,13 @@ class SoundFx {
       if (!rim) this.tone(820, at, .022, .018 * intensity, "square");
     } catch (_) { /* audio is best-effort */ }
   }
-  tap() { this.taiko(0, .55, true); }
+  tap() { if (!this.playUserDrum()) this.taiko(0, .55, true); }
   step() { /* 普通连线保持静音；路标触达由 coin() 单独反馈。 */ }
-  coin() { this.tone(987.77, 0, .055, .055, "square"); this.tone(1318.51, .065, .11, .052, "square"); }
-  undo() { this.taiko(0, .5, true); }
-  reset() { this.taiko(0, .62); this.taiko(.09, .45, true); }
-  complete() { [[0, 1], [.1, .72], [.2, .86], [.34, 1.18], [.46, .78, true], [.56, 1.25]].forEach(([at, intensity, rim]) => this.taiko(at, intensity, rim)); [[659, .36, .16], [784, .47, .2], [988, .58, .26]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .055, "sine")); }
+  coin() { if (!this.playUserDrum()) { this.tone(987.77, 0, .055, .055, "square"); this.tone(1318.51, .065, .11, .052, "square"); } }
+  undo() { if (!this.playUserDrum()) this.taiko(0, .5, true); }
+  reset() { if (!this.playUserDrum()) { this.taiko(0, .62); this.taiko(.09, .45, true); } }
+  complete() { if (this.playUserDrum()) return; [[0, 1], [.1, .72], [.2, .86], [.34, 1.18], [.46, .78, true], [.56, 1.25]].forEach(([at, intensity, rim]) => this.taiko(at, intensity, rim)); [[659, .36, .16], [784, .47, .2], [988, .58, .26]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .055, "sine")); }
+  destroy() { try { this.userDrum?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.userDrum = null; }
 }
 
 module.exports = { SoundFx };

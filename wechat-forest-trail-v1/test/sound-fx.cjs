@@ -1,11 +1,13 @@
 const assert = require("node:assert/strict");
 const started = [];
+const drumEvents = [];
 const makeOscillator = () => ({ frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, start(at) { started.push(at); }, stop() {}, set type(_) {} });
 const makeGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
-global.wx = { createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
+const userDrum = { set src(value) { drumEvents.push(`src:${value}`); }, set autoplay(value) { drumEvents.push(`autoplay:${value}`); }, set obeyMuteSwitch(value) { drumEvents.push(`obeyMuteSwitch:${value}`); }, stop() { drumEvents.push("stop"); }, seek(value) { drumEvents.push(`seek:${value}`); }, play() { drumEvents.push("play"); }, destroy() { drumEvents.push("destroy"); } };
+global.wx = { createInnerAudioContext: () => userDrum, createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
 const { SoundFx } = require("../core/SoundFx");
 const sound = new SoundFx(true); sound.step(); assert.equal(started.length, 0, "普通连线音效必须静音");
-sound.coin(); assert.equal(started.length, 2, "路标数字触达应产生两段式金币提示音"); sound.tap(); sound.complete();
-assert.ok(started.length >= 11, "按键与通关应继续产生多层反馈节奏");
-const beforeMute = started.length; sound.setEnabled(false); sound.step(); assert.equal(started.length, beforeMute, "关闭音效后不得继续创建鼓点");
-console.log("原生路径静音与金币提示音校验通过");
+sound.coin(); assert.deepEqual(drumEvents.slice(0, 5), ["src:assets/forest-trail-user-drum.mp3", "autoplay:false", "obeyMuteSwitch:false", "stop", "seek:0"], "数字触达应初始化用户鼓声音频并从起点播放"); assert.equal(drumEvents.at(-1), "play");
+sound.tap(); sound.complete(); assert.equal(drumEvents.filter((event) => event === "play").length, 3, "按键与通关应复用用户鼓声音频");
+const beforeMute = drumEvents.length; sound.setEnabled(false); sound.coin(); assert.equal(drumEvents.length, beforeMute, "关闭音效后不得继续播放用户鼓声"); sound.destroy(); assert.equal(drumEvents.at(-1), "destroy");
+console.log("用户鼓声资源、路径静音与数字触达校验通过");
