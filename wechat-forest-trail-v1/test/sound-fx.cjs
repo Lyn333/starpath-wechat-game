@@ -4,7 +4,8 @@ const makeOscillator = () => ({ frequency: { setValueAtTime() {}, exponentialRam
 const makeGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
 global.wx = { createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
 const { SoundFx } = require("../core/SoundFx");
-const sound = new SoundFx(true); sound.step(); sound.tap(); sound.complete();
-assert.ok(started.length >= 10, "步进、按键和通关应产生多层太鼓节奏");
+const sound = new SoundFx(true); sound.step(); assert.equal(started.length, 0, "普通连线音效必须静音");
+sound.coin(); assert.equal(started.length, 2, "路标数字触达应产生两段式金币提示音"); sound.tap(); sound.complete();
+assert.ok(started.length >= 11, "按键与通关应继续产生多层反馈节奏");
 const beforeMute = started.length; sound.setEnabled(false); sound.step(); assert.equal(started.length, beforeMute, "关闭音效后不得继续创建鼓点");
-console.log("太鼓风格音效校验通过");
+console.log("原生路径静音与金币提示音校验通过");

@@ -30,6 +30,7 @@ class ForestTrailMiniGame {
   render(snapshot = this.engine.getSnapshot()) { this.renderer.render(snapshot, this.view(snapshot)); }
   selectStandard(gridSize = this.gridSize, difficulty = this.difficulty) { this.mode = "standard"; this.gridSize = gridSize; this.difficulty = difficulty; this.sound.tap(); this.start(this.pickRandom(this.current?.id)); }
   selectDaily() { const level = createDailyChallenge(); this.mode = "daily"; this.gridSize = level.gridSize; this.difficulty = level.difficulty; this.sound.tap(); this.start(level); }
+  moveTo(cell) { const expectedWaypoint = this.engine.nextWaypoint; if (!this.engine.tryMove(cell)) return false; if (this.engine.numberAt(cell) === expectedWaypoint) this.sound.coin(); return true; }
   handleStart(event) {
     const point = pointFrom(event); if (!point) return; const controls = this.renderer.controls;
     if (this.renderer.hit(controls.sound, point)) { this.progress.setSoundEnabled(!this.progress.soundEnabled()); this.sound.setEnabled(this.progress.soundEnabled()); if (this.progress.soundEnabled()) this.sound.tap(); return this.render(); }
@@ -39,9 +40,9 @@ class ForestTrailMiniGame {
     if (this.renderer.hit(controls.daily, point)) return this.selectDaily();
     const difficulty = controls.difficulties?.find((item) => this.renderer.hit(item, point)); if (difficulty) return this.selectStandard(this.gridSize, difficulty.id);
     const size = controls.sizes?.find((item) => this.renderer.hit(item, point)); if (size) return this.selectStandard(size.id, this.difficulty);
-    const cell = this.renderer.toCell(point); if (cell && this.engine.tryMove(cell)) { this.dragCell = `${cell.row}:${cell.col}`; this.sound.step(); }
+    const cell = this.renderer.toCell(point); if (cell && this.moveTo(cell)) this.dragCell = `${cell.row}:${cell.col}`;
   }
-  handleMove(event) { const point = pointFrom(event); if (!point || this.engine.getSnapshot().status === "completed") return; const cell = this.renderer.toCell(point); if (!cell) return; const key = `${cell.row}:${cell.col}`; if (key === this.dragCell) return; if (this.engine.tryMove(cell)) { this.dragCell = key; this.sound.step(); } }
+  handleMove(event) { const point = pointFrom(event); if (!point || this.engine.getSnapshot().status === "completed") return; const cell = this.renderer.toCell(point); if (!cell) return; const key = `${cell.row}:${cell.col}`; if (key === this.dragCell) return; if (this.moveTo(cell)) this.dragCell = key; }
   handleEnd() { this.dragCell = null; }
   resize() { this.renderer.resize(); this.render(); }
   destroy() { this.unsubscribe?.(); }

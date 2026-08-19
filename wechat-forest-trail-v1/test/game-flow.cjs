@@ -8,9 +8,17 @@ const sample = { id:"sample-6", title:"样例", gridSize:"6x6", difficulty:"easy
 const canvas = { getContext: () => context };
 const game = new ForestTrailMiniGame(canvas, [sample]);
 assert.equal(game.current.id, "sample-6");
-assert.ok(Math.abs((game.renderer.board.top + game.renderer.board.width / 2) - 422) <= 2);
+assert.equal(game.renderer.controls.sound.y, 32, "顶部状态栏应下移至32px");
+assert.ok(game.renderer.board.top + game.renderer.board.width / 2 < 422, "棋盘应从竖屏中心上移并更靠近云朵");
+assert.ok(game.renderer.board.top >= 88, "棋盘不得侵入下移后的顶部状态栏");
 assert.equal(game.renderer.controls.difficulties[0].y - (game.renderer.controls.undo.y + game.renderer.controls.undo.height), game.renderer.board.controlGap);
 assert.equal(game.renderer.controls.sizes[0].y - (game.renderer.controls.difficulties[0].y + game.renderer.controls.difficulties[0].height), game.renderer.board.controlGap);
+let coinCount = 0; let ordinaryStepCount = 0; game.sound.coin = () => { coinCount += 1; }; game.sound.step = () => { ordinaryStepCount += 1; };
+const toTouch = (cell) => ({ clientX: game.renderer.board.left + (cell.col + .5) * game.renderer.board.cell, clientY: game.renderer.board.top + (cell.row + .5) * game.renderer.board.cell });
+game.handleStart({ touches:[toTouch({row:0,col:0})] });
+game.handleMove({ touches:[toTouch({row:0,col:1})] });
+assert.equal(coinCount, 1, "起点数字触达应播放一次金币音");
+assert.equal(ordinaryStepCount, 0, "普通连线不得播放步进音效");
 game.selectDaily(); assert.equal(game.mode, "daily"); assert.equal(game.current.gridSize, "8x8");
 game.current.solution.forEach((cell) => game.engine.tryMove(cell));
 assert.equal(game.progress.isDailyComplete(game.current), true);

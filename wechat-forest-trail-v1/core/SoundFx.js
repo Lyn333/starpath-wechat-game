@@ -28,7 +28,8 @@ class SoundFx {
     } catch (_) { /* audio is best-effort */ }
   }
   tap() { this.taiko(0, .55, true); }
-  step() { this.taiko(0, .72); }
+  step() { /* 普通连线保持静音；路标触达由 coin() 单独反馈。 */ }
+  coin() { this.tone(987.77, 0, .055, .055, "square"); this.tone(1318.51, .065, .11, .052, "square"); }
   undo() { this.taiko(0, .5, true); }
   reset() { this.taiko(0, .62); this.taiko(.09, .45, true); }
   complete() { [[0, 1], [.1, .72], [.2, .86], [.34, 1.18], [.46, .78, true], [.56, 1.25]].forEach(([at, intensity, rim]) => this.taiko(at, intensity, rim)); [[659, .36, .16], [784, .47, .2], [988, .58, .26]].forEach(([frequency, at, duration]) => this.tone(frequency, at, duration, .055, "sine")); }
