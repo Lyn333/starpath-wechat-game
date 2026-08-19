@@ -14,7 +14,7 @@ function formatTime(ms) { const seconds = Math.floor(ms / 1000); return `${Math.
 
 class ForestTrailMiniGame {
   constructor(canvas, levels) {
-    this.canvas = canvas; this.levels = levels; this.progress = new ProgressStore(); this.sound = new SoundFx(this.progress.soundEnabled(), this.progress.soundVolume());
+    this.canvas = canvas; this.levels = levels; this.progress = new ProgressStore(); this.sound = new SoundFx(this.progress.soundEnabled());
     this.renderer = new SingleBoardRenderer(canvas); this.gridSize = "6x6"; this.difficulty = "easy"; this.mode = "standard"; this.dragCell = null; this.startedAt = Date.now(); this.current = this.pickRandom(); this.start(this.current); this.sound.startBackgroundMusic();
   }
   pickRandom(excludeId) {
@@ -26,7 +26,7 @@ class ForestTrailMiniGame {
     this.current = level; this.wasCompleted = false; this.dragCell = null; this.startedAt = Date.now(); this.renderer.setLevel(level); this.engine = new TrailEngine(level);
     this.unsubscribe?.(); this.unsubscribe = this.engine.subscribe((snapshot) => { if (snapshot.status === "completed" && !this.wasCompleted) { this.wasCompleted = true; this.progress.markComplete(level, { moves: snapshot.moves, elapsedMs: Date.now() - this.startedAt }); this.sound.complete(); } this.render(snapshot); });
   }
-  view(snapshot = this.engine.getSnapshot()) { return { daily: this.mode === "daily", dailyComplete: this.mode === "daily" && this.progress.isDailyComplete(this.current), gridSize: this.gridSize, difficulty: this.difficulty, difficultyLabel: LABELS[this.difficulty], sound: this.progress.soundEnabled(), volume: this.progress.soundVolume(), points: snapshot.status === "completed" ? Math.max(10, Math.round(1200 / Math.max(1, snapshot.moves))) : 0, time: formatTime(Date.now() - this.startedAt) }; }
+  view(snapshot = this.engine.getSnapshot()) { return { daily: this.mode === "daily", dailyComplete: this.mode === "daily" && this.progress.isDailyComplete(this.current), gridSize: this.gridSize, difficulty: this.difficulty, difficultyLabel: LABELS[this.difficulty], sound: this.progress.soundEnabled(), points: snapshot.status === "completed" ? Math.max(10, Math.round(1200 / Math.max(1, snapshot.moves))) : 0, time: formatTime(Date.now() - this.startedAt) }; }
   render(snapshot = this.engine.getSnapshot()) { this.renderer.render(snapshot, this.view(snapshot)); }
   selectStandard(gridSize = this.gridSize, difficulty = this.difficulty) { this.mode = "standard"; this.gridSize = gridSize; this.difficulty = difficulty; this.sound.tap(); this.start(this.pickRandom(this.current?.id)); }
   selectDaily() { const level = createDailyChallenge(); this.mode = "daily"; this.gridSize = level.gridSize; this.difficulty = level.difficulty; this.sound.tap(); this.start(level); }
@@ -34,7 +34,6 @@ class ForestTrailMiniGame {
   handleStart(event) {
     const point = pointFrom(event); if (!point) return; const controls = this.renderer.controls;
     if (this.renderer.hit(controls.sound, point)) { this.progress.setSoundEnabled(!this.progress.soundEnabled()); this.sound.setEnabled(this.progress.soundEnabled()); if (this.progress.soundEnabled()) this.sound.tap(); return this.render(); }
-    if (this.renderer.hit(controls.volume, point)) { this.sound.setVolume(this.progress.cycleSoundVolume()); return this.render(); }
     if (this.engine.getSnapshot().status === "completed") { if (this.renderer.hit(controls.next, point)) return this.mode === "daily" ? this.selectStandard(this.gridSize, this.difficulty) : this.selectStandard(); return; }
     if (this.renderer.hit(controls.undo, point)) { this.engine.undo(); return this.sound.undo(); }
     if (this.renderer.hit(controls.reset, point)) { this.engine.reset(); return this.sound.reset(); }
