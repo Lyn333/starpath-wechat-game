@@ -255,6 +255,8 @@
 | 原生包自动化校验 | 通过 | `pnpm run verify` 通过：每日挑战跨日稳定性、seed续关、关卡墙体格式转换、单棋盘流程、完成存档与音效开关均已验证，并输出 `/home/ubuntu/wechat-forest-trail-v1-release`。 |
 | 微信真机与上传 | 待完成 | 发布包仍使用 `touristappid`；需要账号管理员提供已认证小游戏 AppID，在微信开发者工具替换后完成真机预览、上传、体验版、审核资料与提审。 |
 
+> 后续已将发布配置更新为 `wx42d447652d8a5d07` 并重新构建。题库普通分包现包含微信要求的 `catalog/game.js` 入口与 `catalog/launchCatalog.js` 数据模块；原生包校验再次通过。真机预览、体验版和提审仍由账号管理员在微信开发者工具与后台完成。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
