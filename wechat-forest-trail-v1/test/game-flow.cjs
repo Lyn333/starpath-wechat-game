@@ -1,7 +1,8 @@
 const assert = require("node:assert/strict");
 const storage = new Map();
 const noOp = () => undefined;
-const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, quadraticCurveTo:noOp, fillText:noOp, setTransform:noOp, scale:noOp, set lineWidth(_){}, set lineCap(_){}, set strokeStyle(_){}, set fillStyle(_){}, set font(_){}, set textAlign(_){}, set textBaseline(_){} };
+const gradients = []; const strokes = []; let strokeStyle = null; let lineWidth = 1; let lineCap = "butt"; let lineJoin = "miter";
+const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke(){ strokes.push({ strokeStyle, lineWidth, lineCap, lineJoin }); }, moveTo:noOp, lineTo:noOp, quadraticCurveTo:noOp, fillText:noOp, setTransform:noOp, scale:noOp, createLinearGradient(){ const gradient={stops:[],addColorStop(offset,color){this.stops.push([offset,color]);}}; gradients.push(gradient); return gradient; }, set lineWidth(value){lineWidth=value;}, set lineCap(value){lineCap=value;}, set lineJoin(value){lineJoin=value;}, set strokeStyle(value){strokeStyle=value;}, set fillStyle(_){}, set font(_){}, set textAlign(_){}, set textBaseline(_){} };
 global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }), getStorageSync: (key) => storage.get(key), setStorageSync: (key, value) => storage.set(key, value) };
 const { ForestTrailMiniGame } = require("../core/GameFlow");
 const sample = { id:"sample-6", title:"样例", gridSize:"6x6", difficulty:"easy", rows:6, cols:6, waypoints:[{number:1,cell:{row:0,col:0}},{number:2,cell:{row:5,col:5}}], walls:[], solution:Array.from({length:36},(_,index)=>({row:Math.floor(index/6),col:Math.floor(index/6)%2?5-index%6:index%6})) };
@@ -14,6 +15,10 @@ assert.ok(game.renderer.board.top + game.renderer.board.width / 2 < 422, "棋盘
 assert.ok(game.renderer.board.top >= 88, "棋盘不得侵入下移后的顶部状态栏");
 assert.equal(game.renderer.controls.difficulties[0].y - (game.renderer.controls.undo.y + game.renderer.controls.undo.height), game.renderer.board.controlGap);
 assert.equal(game.renderer.controls.sizes[0].y - (game.renderer.controls.difficulties[0].y + game.renderer.controls.difficulties[0].height), game.renderer.board.controlGap);
+game.engine.tryMove({row:0,col:0}); game.engine.tryMove({row:0,col:1}); game.renderer.render(game.engine.getSnapshot(), game.view());
+const greenGradient = gradients.at(-1); assert.deepEqual(greenGradient.stops, [[0,"#0e9f57"],[.5,"#2fe278"],[1,"#087f46"]], "路径应使用三段绿色渐变");
+const pathStroke = strokes.findLast((stroke) => stroke.strokeStyle === greenGradient); assert.ok(pathStroke.lineWidth >= Math.max(14,game.renderer.board.cell*.38), "路径应使用加粗线宽"); assert.equal(pathStroke.lineCap,"round","路径端点应为圆角"); assert.equal(pathStroke.lineJoin,"round","路径折角应为圆角");
+game.engine.reset();
 let coinCount = 0; let ordinaryStepCount = 0; game.sound.coin = () => { coinCount += 1; }; game.sound.step = () => { ordinaryStepCount += 1; };
 const toTouch = (cell) => ({ clientX: game.renderer.board.left + (cell.col + .5) * game.renderer.board.cell, clientY: game.renderer.board.top + (cell.row + .5) * game.renderer.board.cell });
 game.handleStart({ touches:[toTouch({row:0,col:0})] });
