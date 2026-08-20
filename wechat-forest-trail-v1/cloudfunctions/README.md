@@ -1,10 +1,10 @@
 # 森林寻径微信云开发排行榜部署
 
-本目录对应云环境 `cloud1-d7g6hjrq143bf0450` 的排行榜部署材料。主域只提交关卡标识、用时、步数和派生分数；玩家身份由云函数中的微信上下文获取，客户端不会传入或保存 OpenID。
+本目录对应云环境 `forest-trail-d2g9yvxci3e68e058` 的排行榜部署材料。主域只提交关卡标识、用时、步数和派生分数；玩家身份由云函数中的微信上下文获取，客户端不会传入或保存 OpenID。
 
 ## 在微信开发者工具中部署
 
-导入 r17 或更新后的发布包后，确认项目详情中的云函数根目录为 `cloudfunctions/`。在左侧云函数目录中，依次右键 `submitGameResult` 与 `getGlobalLeaderboard`，选择“上传并部署：云端安装依赖”。部署前请在云开发控制台切换到环境 `cloud1-d7g6hjrq143bf0450`。
+导入 r20 或更新后的发布包后，确认项目详情中的云函数根目录为 `cloudfunctions/`。在左侧云函数目录中，依次右键 `submitGameResult` 与 `getGlobalLeaderboard`，选择“上传并部署：云端安装依赖”。部署前请在云开发控制台切换到环境 `forest-trail-d2g9yvxci3e68e058`。
 
 ## 数据库集合和索引
 

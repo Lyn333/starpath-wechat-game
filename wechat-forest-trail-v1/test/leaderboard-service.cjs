@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const { CLOUD_ENV, FRIEND_SCORE_KEY, LeaderboardService } = require("../core/LeaderboardService");
+const { CLOUD_ENV, CLOUD_RANKING_ENABLED, FRIEND_SCORE_KEY, LeaderboardService } = require("../core/LeaderboardService");
 
 const calls = { init: [], storage: [], cloud: [], messages: [] };
 global.wx = {
@@ -13,6 +13,8 @@ global.wx = {
 };
 
 (async () => {
+  assert.equal(CLOUD_ENV, "forest-trail-d2g9yvxci3e68e058", "排行榜必须指向管理员新建云环境");
+  assert.equal(CLOUD_RANKING_ENABLED, true, "已开通云服务时应启用排行榜特性");
   const service = new LeaderboardService({ cloudEnabled: true });
   assert.equal(await service.initialize(), true, "云开发环境应初始化成功");
   assert.deepEqual(calls.init[0], { env: CLOUD_ENV, traceUser: true }, "初始化必须使用已提供云环境，不携带密钥");
@@ -35,7 +37,7 @@ global.wx = {
   assert.equal(unavailable.status().global.state, "service-required", "无服务时总榜必须保持待同步状态");
   assert.equal(unavailable.openFriendBoard(), false, "无开放数据域时不得声称好友榜已打开");
   global.wx = { cloud: { init: () => { throw new Error("invalid scope"); } } };
-  const disabled = new LeaderboardService();
+  const disabled = new LeaderboardService({ cloudEnabled: false });
   assert.equal(await disabled.initialize(), false, "云排行榜特性关闭时不应调用云初始化");
   assert.equal(disabled.status().global.text, "总榜待云服务开通", "未开通云服务时应显示明确降级状态");
   console.log("云开发排行榜与开放数据域协议校验通过");

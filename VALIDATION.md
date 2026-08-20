@@ -289,6 +289,8 @@
 
 > `r19` 将云开发总榜改为显式特性开关，默认 `CLOUD_RANKING_ENABLED=false`。在 AppID `wx42d447652d8a5d07` 尚未开通云服务或无环境权限时，客户端不再调用 `wx.cloud.init`，避免开发者工具出现 `cloud init error: invalid scope`；通关弹窗总榜状态明确显示“总榜待云服务开通”，其他游戏功能不受影响。开通云服务并部署云函数后，仅需将该常量改为 `true` 后重新构建，即可恢复真实总榜调用。回归覆盖了禁用模式不调用云初始化、启用模式的成功与失败降级、好友榜开放数据域消息和无伪造排名边界；`pnpm run verify` 全部通过。`r19` 扁平归档 SHA-256 为 `5a5302b7dcbb420cb372802f73feaf5c22f195120cd7cbdf03caae9ffb4b9bd2`。
 
+> `r20` 已将排行榜客户端切换至管理员新建的微信云数据库环境 `forest-trail-d2g9yvxci3e68e058`，并启用 `CLOUD_RANKING_ENABLED=true`。发布包仍保留未授权或云函数暂未部署时的明确失败状态，不伪造名次；环境可用后，初始化使用该 Env ID 并通过 `submitGameResult` 同步总榜。同步更新了云函数部署说明、环境与启用状态回归断言。`pnpm run verify` 全部通过，归档已确认包含排行榜客户端及两个云函数入口；`r20` 扁平归档 SHA-256 为 `bb1051cbec59294bc0331e6b3d4bb54dd70df0d09193fb2b27240b507c568aa2`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
