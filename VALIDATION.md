@@ -295,6 +295,8 @@
 
 > 微信开发者工具在该用户的小游戏视图中未提供云函数根目录的部署右键菜单，尽管发布包 `project.config.json` 已配置 `cloudfunctionRoot: "cloudfunctions/"`，且两个函数目录均含 Node.js 入口。为不阻塞云端部署，已按云开发控制台 ZIP 上传要求分别生成独立函数包：`submitGameResult` 包与 `getGlobalLeaderboard` 包的 ZIP 根目录都仅包含 `index.js` 和 `package.json`，可在控制台创建同名 Node.js 云函数后上传并选择“保存并安装依赖”。两包 SHA-256 分别为 `dfce9103630474f1981193082a97ff095f12d68dd4b5b72cb7d2634d909a1415` 与 `a969bb2042b97fc52493a5382504c5b79b3249db9f6aa496e363ee311395691f`。
 
+> 已在真实微信云环境 `forest-trail-d2g9yvxci3e68e058` 完成排行榜后端部署：通过控制台以 Node.js 18.15 创建 `submitGameResult` 与 `getGlobalLeaderboard`，分别上传已校验的函数包并执行“保存并安装依赖”；控制台均显示“正常”。文档型数据库已创建 `forest_trail_results` 集合，权限为 `ADMINONLY`，防止客户端绕过服务端校验直接读取或写入成绩。已创建并核验非唯一复合索引 `scopeKey_score_desc`（`scopeKey` 升序、`score` 降序）和 `openid_scopeKey`（`openid` 升序、`scopeKey` 升序）。下一步是由真实微信账号通关一局，确认云端产生真实成绩记录、总榜名次和好友榜展示。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)

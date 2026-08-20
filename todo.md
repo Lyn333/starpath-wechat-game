@@ -260,8 +260,9 @@
 - [x] 评估图片处理、对象存储与DDoS防护等可选搭配服务对当前版本及后续更新的必要性（当前版本无需预购）。
 - [x] 管理员已创建微信云数据库环境forest-trail-d2g9yvxci3e68e058，待接入小游戏排行榜。
 - [x] 将排行榜客户端环境ID切换为forest-trail-d2g9yvxci3e68e058，启用云开发开关并构建真机验证包（r20）。
-- [ ] 在forest-trail-d2g9yvxci3e68e058部署submitGameResult与getGlobalLeaderboard，创建forest_trail_results集合和复合索引。
+- [x] 在forest-trail-d2g9yvxci3e68e058部署submitGameResult与getGlobalLeaderboard，创建forest_trail_results集合和复合索引（控制台状态正常）。
 - [x] 修复r20归档解压后game.json位于嵌套目录导致微信开发者工具无法导入的问题，并生成根目录扁平归档（SHA-256: bc9c7a43056f70d99837e757ee4ad2c73e402048a97804f9c13a321d626aacb5）。
 - [x] 排查微信开发者工具小游戏模式中云开发入口不可点击的问题，并提供可用的云函数部署入口（改用云开发控制台ZIP上传）。
 - [x] 修复微信开发者工具未将cloudfunctions识别为云函数根目录、因而缺少部署菜单的问题（项目配置已正确；以控制台直传函数包绕过当前工具菜单限制）。
 - [x] 生成submitGameResult与getGlobalLeaderboard的独立ZIP函数包，供云开发控制台直接上传部署（两个包根目录均含index.js与package.json）。
+- [x] 因用户本机无法取得云函数ZIP附件，改用云开发控制台在线编辑创建并部署两个排行榜函数（两个函数均已保存并安装依赖）。
