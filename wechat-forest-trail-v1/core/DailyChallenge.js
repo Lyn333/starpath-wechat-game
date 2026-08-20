@@ -19,6 +19,13 @@ function chinaDateKey(date = new Date()) {
   return shifted.toISOString().slice(0, 10);
 }
 
+const CLOCK_TIERS = {
+  easy: { id: "easy", label: "简单", gridSize: "6x6", difficulty: "easy" },
+  medium: { id: "medium", label: "中等", gridSize: "8x8", difficulty: "medium" },
+  hard: { id: "hard", label: "困难", gridSize: "10x10", difficulty: "hard" },
+  expert: { id: "expert", label: "专家", gridSize: "12x12", difficulty: "hard" },
+};
+
 function createSeededLevel({ gridSize = "8x8", difficulty = "hard", seed, id, title, sourceKind = "seed" }) {
   const random = randomFrom(seed);
   const size = Number(gridSize.split("x")[0]);
@@ -61,4 +68,10 @@ function createContinuation(gridSize, difficulty, ordinal) {
   return createSeededLevel({ gridSize, difficulty, seed, id: `continuation-${gridSize}-${difficulty}-${ordinal}-${hash(seed).toString(16)}`, title: `续关林径 · ${ordinal}`, sourceKind: "continuation" });
 }
 
-module.exports = { chinaDateKey, createDailyChallenge, createContinuation };
+function createClockLevel(tierId, ordinal) {
+  const tier = CLOCK_TIERS[tierId] || CLOCK_TIERS.easy;
+  const seed = `forest-trail:clock:v1:${tier.id}:${ordinal}`;
+  return { ...createSeededLevel({ gridSize: tier.gridSize, difficulty: tier.difficulty, seed, id: `clock-${tier.id}-${ordinal}-${hash(seed).toString(16)}`, title: `时间挑战 · ${tier.label} · ${ordinal}`, sourceKind: "clock" }), clockTier: tier.id, clockOrdinal: ordinal };
+}
+
+module.exports = { CLOCK_TIERS, chinaDateKey, createDailyChallenge, createContinuation, createClockLevel, createSeededLevel };

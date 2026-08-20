@@ -1,10 +1,10 @@
 # 森林寻径微信云开发排行榜部署
 
-本目录对应云环境 `forest-trail-d2g9yvxci3e68e058` 的排行榜部署材料。主域只提交关卡标识、用时、步数和派生分数；玩家身份由云函数中的微信上下文获取，客户端不会传入或保存 OpenID。
+本目录对应云环境 `forest-trail-d2g9yvxci3e68e058` 的排行榜部署材料。标准关卡主域只提交关卡标识、用时、步数和派生分数；时间挑战仅提交档位、完成局数和剩余时间。玩家身份由云函数中的微信上下文获取，客户端不会传入或保存 OpenID。
 
 ## 在微信开发者工具中部署
 
-导入 r20 或更新后的发布包后，确认项目详情中的云函数根目录为 `cloudfunctions/`。在左侧云函数目录中，依次右键 `submitGameResult` 与 `getGlobalLeaderboard`，选择“上传并部署：云端安装依赖”。部署前请在云开发控制台切换到环境 `forest-trail-d2g9yvxci3e68e058`。
+导入 r22 或更新后的发布包后，确认项目详情中的云函数根目录为 `cloudfunctions/`。在左侧云函数目录中，依次更新 `submitGameResult` 与 `getGlobalLeaderboard`，选择“上传并部署：云端安装依赖”。部署前请在云开发控制台切换到环境 `forest-trail-d2g9yvxci3e68e058`。若开发者工具未显示部署菜单，可在云开发控制台的对应函数“函数代码”页上传该函数目录生成的 ZIP 后选择“保存并安装依赖”。
 
 ## 数据库集合和索引
 
@@ -15,8 +15,8 @@
 | `forest_trail_results` | `scopeKey` 升序、`score` 降序 | 查询总榜前列与计算领先人数。 |
 | `forest_trail_results` | `openid` 升序、`scopeKey` 升序 | 查找并更新玩家在某榜单范围内的最佳成绩。 |
 
-`submitGameResult` 只保留同一玩家在同一范围内的最佳分数；`getGlobalLeaderboard` 不返回 OpenID。好友榜不经过云函数读取关系链，而是由开放数据域通过微信托管数据读取。
+`submitGameResult` 只保留同一玩家在同一范围内的最佳分数；`getGlobalLeaderboard` 不返回 OpenID。时间挑战使用 `clock:easy`、`clock:medium`、`clock:hard`、`clock:expert` 四个独立范围，以**完成局数优先、剩余秒数次之**的派生分数排序；现有两个复合索引可直接复用。好友榜不经过云函数读取关系链，而是由开放数据域通过微信托管数据读取。
 
 ## 好友榜配置
 
-通关时主域会写入键 `forest_trail_rank_score_v1`，并向 `open-data/index.js` 发送消息。开放数据域使用 `wx.getFriendCloudStorage` 获取已经游玩该小游戏的好友成绩并绘制到 sharedCanvas。请在小游戏管理后台的“游戏能力地图 → 社交能力 → 微信排行榜配置”中，以相同键配置排行榜；该后台配置按微信审核生效。
+标准通关时主域会写入键 `forest_trail_rank_score_v1`；时间挑战结束时会写入键 `forest_trail_clock_rank_score_v1`，并向 `open-data/index.js` 发送对应榜单标题。开放数据域使用 `wx.getFriendCloudStorage` 获取已经游玩该小游戏的好友成绩并绘制到 sharedCanvas。请在小游戏管理后台的“游戏能力地图 → 社交能力 → 微信排行榜配置”中，以相同键配置排行榜；该后台配置按微信审核生效。

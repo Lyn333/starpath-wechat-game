@@ -7,5 +7,5 @@ exports.main = async (event) => {
     db.collection("forest_trail_results").where({ scopeKey }).orderBy("score", "desc").limit(100).field({ openid: false }).get(),
     db.collection("forest_trail_results").where({ scopeKey }).count(),
   ]);
-  return { items: result.data.map((item, index) => ({ rank: index + 1, score: item.score, levelId: item.levelId, elapsedMs: item.elapsedMs, moves: item.moves })), total: total.total };
+  return { items: result.data.map((item, index) => ({ rank: index + 1, score: item.score, levelId: item.levelId, elapsedMs: item.elapsedMs, moves: item.moves, solved: item.solved, remainingMs: item.remainingMs, clockTier: item.clockTier })), total: total.total };
 };
