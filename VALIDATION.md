@@ -293,6 +293,8 @@
 
 > 后续导入反馈确认此前交付的 r20 ZIP 顶层额外包裹了 `wechat-forest-trail-v1-release/` 目录，若直接选择解压目录会导致工具找不到 `game.json`。已重新生成**真正扁平**的 r20 归档：解压后的根目录直接包含 `game.json`、`game.js`、`project.config.json`、`core/`、`catalog/`、`audio/` 与 `cloudfunctions/`。归档目录清单已用 `unzip -Z1` 校验顶层存在精确条目 `game.json`；修复归档 SHA-256 为 `bc9c7a43056f70d99837e757ee4ad2c73e402048a97804f9c13a321d626aacb5`。
 
+> 微信开发者工具在该用户的小游戏视图中未提供云函数根目录的部署右键菜单，尽管发布包 `project.config.json` 已配置 `cloudfunctionRoot: "cloudfunctions/"`，且两个函数目录均含 Node.js 入口。为不阻塞云端部署，已按云开发控制台 ZIP 上传要求分别生成独立函数包：`submitGameResult` 包与 `getGlobalLeaderboard` 包的 ZIP 根目录都仅包含 `index.js` 和 `package.json`，可在控制台创建同名 Node.js 云函数后上传并选择“保存并安装依赖”。两包 SHA-256 分别为 `dfce9103630474f1981193082a97ff095f12d68dd4b5b72cb7d2634d909a1415` 与 `a969bb2042b97fc52493a5382504c5b79b3249db9f6aa496e363ee311395691f`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
