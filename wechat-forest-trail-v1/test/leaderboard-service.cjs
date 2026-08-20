@@ -13,7 +13,7 @@ global.wx = {
 };
 
 (async () => {
-  const service = new LeaderboardService();
+  const service = new LeaderboardService({ cloudEnabled: true });
   assert.equal(await service.initialize(), true, "云开发环境应初始化成功");
   assert.deepEqual(calls.init[0], { env: CLOUD_ENV, traceUser: true }, "初始化必须使用已提供云环境，不携带密钥");
   await service.submitCompletion({ id: "level-1", gridSize: "6x6", difficulty: "easy", sourceKind: "catalog" }, { elapsedMs: 12500, moves: 36 });
@@ -28,11 +28,15 @@ global.wx = {
   const openData = fs.readFileSync(require.resolve("../open-data/index.js"), "utf8");
   assert.match(openData, /getFriendCloudStorage/, "开放数据域必须通过微信关系链接口读取好友成绩");
   delete global.wx;
-  const unavailable = new LeaderboardService();
+  const unavailable = new LeaderboardService({ cloudEnabled: true });
   assert.equal(await unavailable.initialize(), false, "无微信云能力时应保持服务不可用状态");
   assert.equal(await unavailable.submitCompletion({ id: "offline" }, { elapsedMs: 1, moves: 1 }), false, "无服务时不得伪造提交成功");
   assert.equal(unavailable.status().friend.state, "authorization-required", "无授权时好友榜必须保持待授权状态");
   assert.equal(unavailable.status().global.state, "service-required", "无服务时总榜必须保持待同步状态");
   assert.equal(unavailable.openFriendBoard(), false, "无开放数据域时不得声称好友榜已打开");
+  global.wx = { cloud: { init: () => { throw new Error("invalid scope"); } } };
+  const disabled = new LeaderboardService();
+  assert.equal(await disabled.initialize(), false, "云排行榜特性关闭时不应调用云初始化");
+  assert.equal(disabled.status().global.text, "总榜待云服务开通", "未开通云服务时应显示明确降级状态");
   console.log("云开发排行榜与开放数据域协议校验通过");
 })().catch((error) => { console.error(error); process.exitCode = 1; });
