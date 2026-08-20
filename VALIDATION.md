@@ -297,6 +297,8 @@
 
 > 已在真实微信云环境 `forest-trail-d2g9yvxci3e68e058` 完成排行榜后端部署：通过控制台以 Node.js 18.15 创建 `submitGameResult` 与 `getGlobalLeaderboard`，分别上传已校验的函数包并执行“保存并安装依赖”；控制台均显示“正常”。文档型数据库已创建 `forest_trail_results` 集合，权限为 `ADMINONLY`，防止客户端绕过服务端校验直接读取或写入成绩。已创建并核验非唯一复合索引 `scopeKey_score_desc`（`scopeKey` 升序、`score` 降序）和 `openid_scopeKey`（`openid` 升序、`scopeKey` 升序）。下一步是由真实微信账号通关一局，确认云端产生真实成绩记录、总榜名次和好友榜展示。
 
+> `r21` 修复真机竖屏通关弹窗中“继续下一题”绿色按钮越过白色外框底边的问题。按钮布局不再依赖固定的内容偏移，而是由外框底边减去按钮高度与 12px 内边距计算；排行榜按钮同步上移，两个操作按钮保持 8px 间距。渲染器现记录通关外框边界，原生流程回归断言“继续下一题”按钮底边始终精确保留 12px，不会越界。`pnpm run verify` 的每日挑战、题库、开场、游戏流程、音效、排行榜和发布构建均通过。新的扁平归档在解压根目录直接包含 `game.json`，SHA-256 为 `0acbf48e2f7b8ef7e3f057b30c03c06e0688a1c03a32121ec1b062c6d9990860`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
