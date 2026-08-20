@@ -301,6 +301,8 @@
 
 > `r22` 重构原生微信小游戏底部控制区：第一行仅保留“撤回、清空”两个等宽按键；第二行维持简单/中等/困难难度；第三行维持 6×6/8×8/10×10/12×12 尺寸；第四行新增绿色“时间挑战 Beat the Clock”入口，且移除了每日挑战。时间挑战提供简单 6×6、中等 8×8、困难 10×10、专家 12×12 四档；选择后启动 60 秒倒计时，每成功完成一局增加 8 秒并无缝生成下一局，时间到显示完成局数、本地最佳、时间挑战总榜状态、好友榜入口和再来一次操作。排行榜客户端对时间挑战使用独立好友托管键 `forest_trail_clock_rank_score_v1`；云函数对 `clock:*` 范围按完成局数优先、剩余秒数次之写入与排序，现有复合索引直接复用。每日挑战、题库、开场、游戏流程、时间挑战、音效和排行榜协议测试均通过，扁平 r22 归档根目录已校验包含 `game.json`，SHA-256 为 `7af861cba19f4d36cfb3fa41bea3ecc150fb049fa58318e7816deecc7f236dfe`。待将两个更新后的云函数部署至真实环境后完成真机排行榜验收。
 
+> `r22` 的原生小游戏代码、时间挑战云函数材料、回归测试、部署说明、待办与验收记录已同步至 [Lyn333/starpath-wechat-game](https://github.com/Lyn333/starpath-wechat-game) 的 `main` 分支，远程提交为 `e26fefe778beef16325c1640b5cebdc6dd61d54`。该同步包含此前尚未推送的 r13 至 r22 历史。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
