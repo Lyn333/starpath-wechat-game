@@ -261,3 +261,4 @@
 - [x] 管理员已创建微信云数据库环境forest-trail-d2g9yvxci3e68e058，待接入小游戏排行榜。
 - [x] 将排行榜客户端环境ID切换为forest-trail-d2g9yvxci3e68e058，启用云开发开关并构建真机验证包（r20）。
 - [ ] 在forest-trail-d2g9yvxci3e68e058部署submitGameResult与getGlobalLeaderboard，创建forest_trail_results集合和复合索引。
+- [x] 修复r20归档解压后game.json位于嵌套目录导致微信开发者工具无法导入的问题，并生成根目录扁平归档（SHA-256: bc9c7a43056f70d99837e757ee4ad2c73e402048a97804f9c13a321d626aacb5）。

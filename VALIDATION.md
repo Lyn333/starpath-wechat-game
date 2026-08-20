@@ -291,6 +291,8 @@
 
 > `r20` 已将排行榜客户端切换至管理员新建的微信云数据库环境 `forest-trail-d2g9yvxci3e68e058`，并启用 `CLOUD_RANKING_ENABLED=true`。发布包仍保留未授权或云函数暂未部署时的明确失败状态，不伪造名次；环境可用后，初始化使用该 Env ID 并通过 `submitGameResult` 同步总榜。同步更新了云函数部署说明、环境与启用状态回归断言。`pnpm run verify` 全部通过，归档已确认包含排行榜客户端及两个云函数入口；`r20` 扁平归档 SHA-256 为 `bb1051cbec59294bc0331e6b3d4bb54dd70df0d09193fb2b27240b507c568aa2`。
 
+> 后续导入反馈确认此前交付的 r20 ZIP 顶层额外包裹了 `wechat-forest-trail-v1-release/` 目录，若直接选择解压目录会导致工具找不到 `game.json`。已重新生成**真正扁平**的 r20 归档：解压后的根目录直接包含 `game.json`、`game.js`、`project.config.json`、`core/`、`catalog/`、`audio/` 与 `cloudfunctions/`。归档目录清单已用 `unzip -Z1` 校验顶层存在精确条目 `game.json`；修复归档 SHA-256 为 `bc9c7a43056f70d99837e757ee4ad2c73e402048a97804f9c13a321d626aacb5`。
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
