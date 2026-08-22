@@ -295,5 +295,7 @@
 - [x] 核对真机调试中reportUserBehavior与private_getBackgroundFetchData日志是否由游戏代码触发；源码无相关调用，截图未显示排行榜或云初始化错误，无需修改游戏代码。
 - [x] 修复标准模式通关后好友榜隐私调用失败（getFriendCloudStorage errno=1026 / err_code=-12034）阻塞时间挑战入口的问题；好友榜降级不再影响总榜提交或游戏触控。
 - [x] 构建并校验r27非阻塞好友榜修复版；根目录含game.json，SHA-256为10e76ed34e6bc3b6085fffd5e229f1402de074f02f238b0ed3b8f8fa6cdaa03c。
-- [x] 将r23、r24和r25迁移记录同步推送至Lyn333/starpath-wechat-game的main分支（r26云榜配置一并同步，远程提交92ae53b85d5b18cd7522d5c095d1102d46419714）。
+- [x] 修复r27真机标准榜和时间挑战榜停留“正在同步总榜”的云函数调用未返回问题；提交超时后改用真实总榜查询回退，待真机确认具体排名。
+- [x] 构建并校验r28云榜超时回退修复版；根目录含game.json，SHA-256为da9769a9db03a4210f332f606220ec586b18b33c0f0b547b6df34bf7972e8cf2。
+- [x] 将r23、r24和r25迁移记录同步推送至Lyn333/starpath-wechat-game的main分支（r26云榜配置与r27入口修复一并同步，最新远程提交1d53ffdebcb5dd298deb08871b1dee8c4bac56be）。
 - [x] 核对候选环境forest-trail-d6grbvm3o2ab75f2b的完整Env ID、所属账号与地域；管理员登录刷新后已在上海地域CloudBase控制台确认可见。

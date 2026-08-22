@@ -31,6 +31,12 @@ global.wx = {
   await nonBlockingService.submitCompletion({ id: "level-pending-friend", gridSize: "6x6", difficulty: "easy", sourceKind: "catalog" }, { elapsedMs: 8300, moves: 30 });
   assert.equal(calls.cloud.length, cloudCallsBeforePendingFriendWrite + 1, "好友榜存储回调悬挂时，总榜提交不得被阻塞");
   resolveFriendWrite();
+  global.wx.setUserCloudStorage = async () => {};
+  global.wx.cloud.callFunction = (options) => options.name === "submitGameResult" ? new Promise(() => {}) : Promise.resolve({ result: { items: [{ levelId: "level-fallback", score: 99986700 }], total: 1 } });
+  const fallbackService = new LeaderboardService({ cloudEnabled: true, cloudSubmitTimeoutMs: 1, cloudFallbackTimeoutMs: 20 });
+  await fallbackService.initialize();
+  assert.equal(await fallbackService.submitCompletion({ id: "level-fallback", gridSize: "6x6", difficulty: "easy", sourceKind: "catalog" }, { elapsedMs: 12000, moves: 13 }), true, "提交函数超时后应从总榜查询回退得到真实排名");
+  assert.equal(fallbackService.status().global.text, "总榜第 1 名 / 1 人", "总榜回退应展示数据库查询得到的名次");
   assert.equal(service.openFriendBoard(), true, "好友榜应向开放数据域发送消息");
   assert.deepEqual(calls.messages[0], { type: "SHOW_FRIEND_RANK", key: FRIEND_SCORE_KEY, title: "好友榜" }, "开放数据域消息协议应固定好友榜键");
   const gameConfig = JSON.parse(fs.readFileSync(require.resolve("../game.json"), "utf8"));
