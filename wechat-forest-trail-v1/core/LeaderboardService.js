@@ -46,9 +46,9 @@ class LeaderboardService {
     try {
       const response = await withTimeout(api.cloud.callFunction({ name: "getGlobalLeaderboard", data: { scopeKey } }), this.cloudFallbackTimeoutMs);
       const items = response?.result?.items || []; const total = response?.result?.total;
-      const matching = items.find((item) => item.levelId === levelId && Number(item.score) === Number(score));
+      const matching = items.find((item) => item.isCurrentUser) || items.find((item) => item.levelId === levelId && Number(item.score) === Number(score));
       if (!matching || !Number.isInteger(total)) throw new Error("rank-fallback-miss");
-      const rank = items.filter((item) => Number(item.score) > Number(score)).length + 1;
+      const rank = Number.isInteger(matching.rank) ? matching.rank : items.filter((item) => Number(item.score) > Number(matching.score)).length + 1;
       this.rankings.global = { state: "ready", text: `${title}第 ${rank} 名 / ${total} 人` }; return true;
     } catch (_) { this.rankings.global = { state: "service-required", text: `${title}同步超时，稍后重试` }; return false; }
   }

@@ -1,4 +1,5 @@
 const cloud = require("wx-server-sdk");
+const { effectiveScore } = require("./scorePolicy");
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
@@ -22,11 +23,12 @@ exports.main = async (event) => {
     payload = { openid, scopeKey, levelId: String(event.levelId), gridSize: String(event.gridSize || ""), difficulty: String(event.difficulty || ""), elapsedMs, moves, score, updatedAt: db.serverDate() };
   }
   const existing = await db.collection(RESULTS).where({ openid, scopeKey: payload.scopeKey }).limit(1).get();
-  if (existing.data.length) { if (payload.score > Number(existing.data[0].score || 0)) await db.collection(RESULTS).doc(existing.data[0]._id).update({ data: payload }); }
+  const storedScore = existing.data.length ? effectiveScore(existing.data[0].score, payload.score) : payload.score;
+  if (existing.data.length) { if (storedScore > Number(existing.data[0].score || 0)) await db.collection(RESULTS).doc(existing.data[0]._id).update({ data: payload }); }
   else await db.collection(RESULTS).add({ data: payload });
   const [higher, total] = await Promise.all([
-    db.collection(RESULTS).where({ scopeKey: payload.scopeKey, score: _.gt(payload.score) }).count(),
+    db.collection(RESULTS).where({ scopeKey: payload.scopeKey, score: _.gt(storedScore) }).count(),
     db.collection(RESULTS).where({ scopeKey: payload.scopeKey }).count(),
   ]);
-  return { rank: higher.total + 1, total: total.total, scopeKey: payload.scopeKey, score: payload.score };
+  return { rank: higher.total + 1, total: total.total, scopeKey: payload.scopeKey, score: storedScore };
 };
