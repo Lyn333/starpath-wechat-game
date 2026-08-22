@@ -55,3 +55,13 @@
 用户已确认后，`scopeKey_score_desc` 已成功创建并显示在索引列表中。第二个索引已配置为非唯一 `openid_scopeKey`：`openid` 升序、`scopeKey` 升序；该字段组合与提交函数查询“当前用户在当前榜单范围内既有记录”的条件一致。该索引尚未最终创建，待获得单独确认。
 
 用户确认后，`openid_scopeKey` 已成功创建并显示在索引列表中；目前 `forest_trail_results` 的自定义排行榜索引完整为：`scopeKey_score_desc`（非唯一，`scopeKey` 升序、`score` 降序）和 `openid_scopeKey`（非唯一，`openid` 升序、`scopeKey` 升序）。权限页确认集合策略为 `ADMINONLY`。新版函数管理页随后确认 `submitGameResult`（Node.js 18.15）与 `getGlobalLeaderboard`（Node.js 20.19）均处于“正常”状态；后者由 r26 ZIP 代码包创建并启用自动依赖安装，前者代码树已验证包含 `node_modules/`、`index.js` 与 `package.json`。至此新环境的服务端资源部署完成，下一步应使用 r26 客户端在真实微信设备上验证云初始化、成绩写入和真实排名返回。
+
+## 2026-08-22 真机调试日志初步核对
+
+用户提供的宽幅控制台截图 `Bug1.jpg` 已按从左至右的图块读取。已确认其中包含运行库前缀 `[wxapplib]` 的 `ExterApp: load res []`、`baseOperateWXData success apiName=jsapi_reportuserbehavior`，以及 `reportUserBehavior` 的 `errMsg:"reportUserBehavior:ok"` 返回和游戏日志配额字段。尽管控制台行带有红色图标，已读返回值为 `ok`，且该片段未出现 `wx.cloud.init`、`callFunction`、`submitGameResult`、`getGlobalLeaderboard` 或 `cloud init error`；暂不能将其判定为森林寻径业务代码或排行榜失败。
+
+`Bug1.jpg` 右侧图块进一步确认该行来源为 `WAGame.js:1`，返回仍为 `reportUserBehavior:ok`。`Bug2.jpg` 左侧图块显示另一条 `[wxapplib] backgroundfetch privacy fail` 运行库日志，`errno:101`，可见的错误文本为 `private_getBackgroundFetchData:fail:jsapi invalid request data`；其下方另有运行库 `baseOperateWXData success` 行，完整 API 名称与右侧上下文仍在继续读取中。
+
+`Bug2.jpg` 中、右图块确认完整错误为 `private_getBackgroundFetchData:fail:jsapi invalid request data`，来源同为 `WAGame.js:1`。紧随其后的运行库成功行是 `baseOperateWXData success apiName=webapi_getwxauserprivacyauthinfo`。两张截图均未含本项目代码文件名、`wx.cloud.init`、`wx.cloud.callFunction`、`submitGameResult`、`getGlobalLeaderboard`、云函数返回体或 `cloud init error`。因此，这两条属于微信运行库的行为上报/后台抓取隐私接口日志，不是森林寻径的排行榜调用失败；不应据此修改游戏云开发代码。真机验收应继续关注实际通关时是否出现云初始化或云函数错误，并确认总榜返回真实名次。
+
+随后用户在标准模式通关后报告 Beat the Clock 入口无响应，并提供包含 `webapi_getfrienduserstorage` 失败（`err_code:-12034`）与 `getFriendCloudStorage` 隐私检查失败（`errno=1026`）的新截图。该错误发生在开放数据域关系链好友榜，官方隐私合规说明将 1025/1026 归为后台隐私保护指引未披露相关用户信息使用的情形；其本身不应阻塞单机游戏或总榜流程。代码核查同时发现标准通关态会优先吞掉非弹窗按钮的触摸事件。r27 已让好友托管数据写入不再被 `await`，并允许玩家在标准完成遮罩显示时直接点时间挑战入口以关闭遮罩、打开档位选择；新增回归覆盖好友榜回调悬挂和通关态直达时间挑战。好友榜隐私声明仍应由管理员在微信小游戏后台完成披露，详见 <https://developers.weixin.qq.com/minigame/dev/guide/open-ability/privacy>。

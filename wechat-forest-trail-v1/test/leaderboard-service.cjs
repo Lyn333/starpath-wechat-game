@@ -23,6 +23,14 @@ global.wx = {
   assert.equal(calls.cloud[0].name, "submitGameResult", "总榜必须通过云函数提交");
   assert.equal(Object.hasOwn(calls.cloud[0].data, "openid"), false, "客户端不得上传或伪造OpenID");
   assert.equal(service.status().global.text, "总榜第 7 名 / 31 人", "总榜只显示云函数返回的真实名次");
+  let resolveFriendWrite;
+  global.wx.setUserCloudStorage = () => new Promise((resolve) => { resolveFriendWrite = resolve; });
+  const nonBlockingService = new LeaderboardService({ cloudEnabled: true });
+  await nonBlockingService.initialize();
+  const cloudCallsBeforePendingFriendWrite = calls.cloud.length;
+  await nonBlockingService.submitCompletion({ id: "level-pending-friend", gridSize: "6x6", difficulty: "easy", sourceKind: "catalog" }, { elapsedMs: 8300, moves: 30 });
+  assert.equal(calls.cloud.length, cloudCallsBeforePendingFriendWrite + 1, "好友榜存储回调悬挂时，总榜提交不得被阻塞");
+  resolveFriendWrite();
   assert.equal(service.openFriendBoard(), true, "好友榜应向开放数据域发送消息");
   assert.deepEqual(calls.messages[0], { type: "SHOW_FRIEND_RANK", key: FRIEND_SCORE_KEY, title: "好友榜" }, "开放数据域消息协议应固定好友榜键");
   const gameConfig = JSON.parse(fs.readFileSync(require.resolve("../game.json"), "utf8"));

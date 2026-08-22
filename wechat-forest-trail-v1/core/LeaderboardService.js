@@ -30,7 +30,8 @@ class LeaderboardService {
   }
   async submitCompletion(level, result) {
     const api = platform(); const score = secondsScore(result);
-    await this.writeFriendScore(FRIEND_SCORE_KEY, score, "正在同步好友排名…", "好友榜已同步，点击查看");
+    // 好友榜依赖关系链隐私授权；其失败或平台回调悬挂不得阻塞总榜同步与后续游戏操作。
+    this.writeFriendScore(FRIEND_SCORE_KEY, score, "正在同步好友排名…", "好友榜已同步，点击查看");
     if (!this.cloudReady || !api?.cloud?.callFunction) return false;
     this.rankings.global = { state: "loading", text: "正在同步总榜…" };
     try {
@@ -40,7 +41,8 @@ class LeaderboardService {
   }
   async submitClockResult(tier, result) {
     const api = platform(); const score = clockScore(result);
-    await this.writeFriendScore(CLOCK_FRIEND_SCORE_KEY, score, "正在同步时间挑战好友榜…", "时间挑战好友榜已同步，点击查看");
+    // 时间挑战同样应在好友榜未授权时保持可结束、可重开并继续提交真实总榜。
+    this.writeFriendScore(CLOCK_FRIEND_SCORE_KEY, score, "正在同步时间挑战好友榜…", "时间挑战好友榜已同步，点击查看");
     if (!this.cloudReady || !api?.cloud?.callFunction) return false;
     this.rankings.global = { state: "loading", text: "正在同步时间挑战总榜…" };
     try {
