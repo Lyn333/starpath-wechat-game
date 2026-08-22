@@ -28,9 +28,9 @@ class SingleBoardRenderer {
   }
   drawSky() { const c = this.ctx; c.fillStyle = "#67C8F4"; c.fillRect(0, 0, this.width, this.height); c.fillStyle = "rgba(255,255,255,.8)"; [[42,105,34],[this.width-58,140,28],[this.width*.26, this.height-108,30]].forEach(([x,y,r]) => { c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.arc(x+r*.75,y+5,r*.7,0,Math.PI*2); c.arc(x-r*.75,y+7,r*.65,0,Math.PI*2); c.fill(); }); }
   drawHeader(snapshot, view) {
-    const c = this.ctx, headerY = 32, title = view.clockActive ? `时间挑战 ${view.clockTier.label}` : `${view.difficultyLabel} ${this.level.gridSize}`;
+    const c = this.ctx, headerY = 32, statsY = headerY + 62, title = view.clockActive ? `时间挑战 ${view.clockTier.label}` : `${view.difficultyLabel} ${this.level.gridSize}`;
     this.rounded(18, headerY, 112, 30, 14, view.clockActive ? "#ffe2a6" : "#fff4be", "#b94232"); c.fillStyle = "#7b321e"; c.font = "700 12px sans-serif"; c.textAlign = "center"; c.fillText(title, 74, headerY + 20);
-    c.fillStyle = "#fff"; c.font = view.clockActive ? "700 15px monospace" : "11px monospace"; c.fillText(view.clockActive ? `⏱ ${view.time}  ·  ${view.clockSolved} 局` : `◷ ${view.time}   Points: ${view.points}`, this.width / 2, headerY + 20);
+    c.fillStyle = "#fff"; c.font = "700 17px Microsoft YaHei, sans-serif"; c.fillText(view.clockActive ? `⏱ ${view.time}  ·  ${view.clockSolved} 局` : `◷ ${view.time}   Points: ${view.points}`, this.width / 2, statsY);
     this.controls.sound = { x: this.width - 75, y: headerY, width: 58, height: 30 }; this.rounded(this.controls.sound.x, headerY, 58, 30, 14, view.sound ? "#ffd43b" : "#fff4be", "#7b321e"); c.fillStyle = "#7b321e"; c.font = "700 11px sans-serif"; c.fillText(`音效 ${view.sound ? "开" : "关"}`, this.width - 46, headerY + 20); c.textAlign = "left";
   }
   drawBoard(snapshot) {
