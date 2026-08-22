@@ -1,11 +1,12 @@
 const assert = require("node:assert/strict");
-let now = 0; const frames = []; const labels = []; let completed = 0;
+let now = 0; const frames = []; const labels = []; const textPositions = new Map(); let completed = 0;
 const noOp = () => undefined;
-const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, bezierCurveTo:noOp, fillText(text) { labels.push(text); }, set globalAlpha(_) {}, set fillStyle(_) {}, set strokeStyle(_) {}, set lineWidth(_) {}, set lineCap(_) {}, set font(_) {}, set textAlign(_) {} };
+const context = { clearRect:noOp, fillRect:noOp, beginPath:noOp, arc:noOp, fill:noOp, stroke:noOp, moveTo:noOp, lineTo:noOp, bezierCurveTo:noOp, fillText(text, x, y) { labels.push(text); textPositions.set(text, { x, y }); }, set globalAlpha(_) {}, set fillStyle(_) {}, set strokeStyle(_) {}, set lineWidth(_) {}, set lineCap(_) {}, set font(_) {}, set textAlign(_) {} };
 global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844 }) };
 const { OpeningSequence } = require("../core/OpeningSequence");
+const defaultOpening = new OpeningSequence({ width:390, height:844, getContext: () => context }); assert.equal(defaultOpening.duration, 10000, "开场动画默认自然播放时长应为10秒");
 const opening = new OpeningSequence({ getContext: () => context }, { duration: 100, now: () => now, schedule: (callback) => { frames.push(callback); return frames.length; }, cancel: () => {}, onComplete: () => { completed += 1; } });
-assert.equal(opening.start(), true, "开场动画应能启动"); assert.equal(opening.active, true); assert.ok(labels.includes("森林寻径"), "首帧应绘制游戏标题"); assert.equal(frames.length, 1, "开场动画应安排下一帧");
+assert.equal(opening.start(), true, "开场动画应能启动"); assert.equal(opening.active, true); assert.ok(labels.includes("森林寻径"), "首帧应绘制游戏标题"); assert.ok(labels.includes("FOREST TRAIL"), "首帧应绘制英文标题"); assert.ok(labels.includes("穿过林间，找到前路"), "首帧应绘制副标题"); assert.ok(labels.includes("森Studios 2026"), "首帧应绘制底部品牌Logo"); assert.equal(textPositions.get("森林寻径").y, 844 * .5 - 54, "中文标题应位于中央上方"); assert.equal(textPositions.get("FOREST TRAIL").y, 844 * .5, "英文标题应位于画面中央"); assert.equal(textPositions.get("穿过林间，找到前路").y, 844 * .5 + 54, "副标题应位于中央下方"); assert.equal(frames.length, 1, "开场动画应安排下一帧");
 now = 40; frames.shift()(); assert.equal(opening.active, true, "时间线中段不应提前结束"); assert.equal(completed, 0);
 assert.equal(opening.skip(), true, "轻触开场时应可跳过"); assert.equal(opening.completed, true); assert.equal(opening.active, false); assert.equal(completed, 1, "跳过应只触发一次开始游戏回调"); assert.equal(opening.skip(), false, "完成后不得重复跳过或重复回调");
 frames.length = 0; now = 0; const completedOpening = new OpeningSequence({ getContext: () => context }, { duration: 100, now: () => now, schedule: (callback) => { frames.push(callback); return frames.length; }, cancel: () => {}, onComplete: () => { completed += 1; } }); completedOpening.start(); now = 100; frames.shift()(); assert.equal(completedOpening.completed, true, "时间线结束应自动进入游戏"); assert.equal(completed, 2, "自然结束同样只触发一次回调");

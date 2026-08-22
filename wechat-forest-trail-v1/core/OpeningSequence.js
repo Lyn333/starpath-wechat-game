@@ -4,7 +4,7 @@ function easeInOut(value) { const t = clamp(value); return t < .5 ? 2 * t * t : 
 
 class OpeningSequence {
   constructor(canvas, options = {}) {
-    this.canvas = canvas; this.ctx = canvas.getContext("2d"); this.duration = options.duration || 2600; this.onComplete = options.onComplete || (() => {});
+    this.canvas = canvas; this.ctx = canvas.getContext("2d"); this.duration = options.duration ?? 10000; this.onComplete = options.onComplete || (() => {});
     this.now = options.now || (() => Date.now()); this.schedule = options.schedule || ((callback) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(callback) : setTimeout(() => callback(this.now()), 16)); this.cancel = options.cancel || ((handle) => { if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(handle); else clearTimeout(handle); });
     this.active = false; this.completed = false; this.frame = null; this.startAt = 0; this.resize();
   }
@@ -43,15 +43,16 @@ class OpeningSequence {
     c.strokeStyle = "#fff4b9"; c.lineWidth = 3; c.globalAlpha = reveal; c.stroke(); c.globalAlpha = 1;
   }
   draw(progress) {
-    const c = this.ctx; const sky = easeOut(progress / .36); const forest = easeOut((progress - .13) / .46); const trail = easeInOut((progress - .34) / .35); const title = easeOut((progress - .5) / .28); const prompt = easeOut((progress - .72) / .18);
+    const c = this.ctx; const sky = easeOut(progress / .36); const forest = easeOut((progress - .13) / .46); const trail = easeInOut((progress - .34) / .35); const title = easeOut((progress - .4) / .22); const brand = easeOut((progress - .67) / .18); const prompt = easeOut((progress - .78) / .16);
     c.clearRect(0, 0, this.width, this.height); c.fillStyle = "#67c8f4"; c.fillRect(0, 0, this.width, this.height);
     c.globalAlpha = sky * .9; c.fillStyle = "#b9e8ff"; c.fillRect(0, this.height * .36, this.width, this.height * .64); c.globalAlpha = 1;
     this.drawCloud(this.width * .18, this.height * .19, 28, sky * .9); this.drawCloud(this.width * .79, this.height * .29, 22, sky * .75);
     c.fillStyle = "#69a941"; c.globalAlpha = forest; c.fillRect(0, this.height * .64, this.width, this.height * .36); c.globalAlpha = 1;
     [[.08,.74,60,"#2f7e3d"],[.27,.77,78,"#358b43"],[.76,.74,75,"#2a7639"],[.92,.79,58,"#3d9548"],[.54,.8,54,"#2f7e3d"]].forEach(([x,base,size,color]) => this.drawTree(this.width * x, this.height * base, size, color, forest));
     if (trail > 0) this.drawTrail(trail);
-    c.textAlign = "center"; c.globalAlpha = title; c.fillStyle = "#fffdf2"; c.font = "700 30px Microsoft YaHei, sans-serif"; c.fillText("森林寻径", this.width / 2, this.height * .35); c.fillStyle = "#3f6b32"; c.font = "700 11px monospace"; c.fillText("FOREST TRAIL", this.width / 2, this.height * .35 + 23); c.font = "13px Microsoft YaHei, sans-serif"; c.fillStyle = "#f7ffe9"; c.fillText("穿过林间，找到前路", this.width / 2, this.height * .35 + 47); c.globalAlpha = 1;
-    c.globalAlpha = prompt * (.72 + Math.sin(progress * Math.PI * 7) * .18); c.fillStyle = "#ffffff"; c.font = "12px Microsoft YaHei, sans-serif"; c.fillText("轻触跳过", this.width / 2, this.height - 38); c.globalAlpha = 1; c.textAlign = "left";
+    const centerY = this.height * .5; const titleY = centerY - 54; const englishY = centerY; const sloganY = centerY + 54; const cnFont = Math.max(36, Math.round(this.width * .108)); const enFont = Math.max(20, Math.round(this.width * .056)); const sloganFont = Math.max(19, Math.round(this.width * .052));
+    c.textAlign = "center"; c.globalAlpha = title; c.fillStyle = "#fffdf2"; c.font = `700 ${cnFont}px Microsoft YaHei, sans-serif`; c.fillText("森林寻径", this.width / 2, titleY); c.fillStyle = "#3f6b32"; c.font = `700 ${enFont}px Georgia, serif`; c.fillText("FOREST TRAIL", this.width / 2, englishY); c.font = `700 ${sloganFont}px Microsoft YaHei, sans-serif`; c.fillStyle = "#f7ffe9"; c.fillText("穿过林间，找到前路", this.width / 2, sloganY); c.globalAlpha = 1;
+    c.globalAlpha = brand * .88; c.fillStyle = "#f7ffe9"; c.font = "700 14px Georgia, Microsoft YaHei, serif"; c.fillText("森Studios 2026", this.width / 2, this.height - 66); c.globalAlpha = prompt * (.72 + Math.sin(progress * Math.PI * 7) * .18); c.fillStyle = "#ffffff"; c.font = "12px Microsoft YaHei, sans-serif"; c.fillText("轻触跳过", this.width / 2, this.height - 38); c.globalAlpha = 1; c.textAlign = "left";
   }
 }
 

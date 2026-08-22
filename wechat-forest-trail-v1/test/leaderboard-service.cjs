@@ -13,8 +13,8 @@ global.wx = {
 };
 
 (async () => {
-  assert.equal(CLOUD_ENV, "forest-trail-d2g9yvxci3e68e058", "排行榜必须指向管理员新建云环境");
-  assert.equal(CLOUD_RANKING_ENABLED, true, "已开通云服务时应启用排行榜特性");
+  assert.equal(CLOUD_ENV, "forest-trail-d6grbvm3o2ab75f2b", "排行榜必须指向正式小游戏新建云环境");
+  assert.equal(CLOUD_RANKING_ENABLED, true, "正式小游戏云环境已开通时应启用排行榜特性");
   const service = new LeaderboardService({ cloudEnabled: true });
   assert.equal(await service.initialize(), true, "云开发环境应初始化成功");
   assert.deepEqual(calls.init[0], { env: CLOUD_ENV, traceUser: true }, "初始化必须使用已提供云环境，不携带密钥");

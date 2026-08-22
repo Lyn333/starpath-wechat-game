@@ -1,4 +1,4 @@
-const CLOUD_ENV = "forest-trail-d2g9yvxci3e68e058";
+const CLOUD_ENV = "forest-trail-d6grbvm3o2ab75f2b";
 const FRIEND_SCORE_KEY = "forest_trail_rank_score_v1";
 const CLOCK_FRIEND_SCORE_KEY = "forest_trail_clock_rank_score_v1";
 const CLOUD_RANKING_ENABLED = true;

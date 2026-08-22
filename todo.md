@@ -271,6 +271,26 @@
 - [x] 将底部第一行改为“撤回、清空”两键并移除每日挑战入口，保持第二行难度和第三行棋盘尺寸选择。
 - [x] 新增第四行“时间挑战 Beat the Clock”入口，提供简单6×6、中等8×8、困难10×10、专家12×12四档选择。
 - [x] 实现时间挑战一局60秒倒计时、每通关一局增加8秒、连续随机出题和结束时锁定成绩的规则。
-- [ ] 扩展时间挑战排行榜数据模型与云函数，按完成局数和剩余时间生成真实排名并展示结束弹窗。
+- [x] 扩展时间挑战排行榜数据模型与云函数，按完成局数和剩余时间生成真实排名并展示结束弹窗（已更新真实云环境，两个函数状态正常）。
 - [ ] 为四行控制区、时间挑战四档、倒计时奖励、超时结束与排行榜边界补充原生回归及真机验证。
 - [x] 将r22 Beat the Clock代码、云函数材料、测试、部署说明与验收记录提交并推送至Lyn333/starpath-wechat-game（GitHub main：e26fefe778beef16325c1640b5cebdc6dd61d54）。
+- [x] 将森林开场动画自然播放时间延长至5秒，并在底部加入“森Studios 2026”品牌Logo且保留轻触跳过（r23，SHA-256: 8f8207841819acaea8a998091d524df6e66b20fe63efe7936cd2c9125f2d2f85）。
+- [x] 将开场动画自然播放时间延长至10秒，并放大三行标题文案后均匀平铺在画面中央区域（r24，SHA-256: a1949594e520d88a826a5dfc82ea335fb713574c0a3a06f0b22bcab04a903c07）。
+- [x] 解决真机wx.cloud.init invalid scope权限错误，确认小游戏AppID wx42d447652d8a5d07与排行榜云环境的微信云开发授权关系（已确认wx42不是本游戏正式AppID，旧环境不再使用）。
+- [x] 绕过CloudBase第三方扫码授权无效问题，通过小游戏官方云开发入口为AppID wx42d447652d8a5d07创建或绑定可用环境（旧AppID迁移路径已废弃）。
+- [x] 在AppID云开发授权完成前生成不调用wx.cloud.init的r24无错误降级真机包，保留游戏与时间挑战本地功能（由正式AppID迁移版r25替代）。
+- [x] 为目标小游戏AppID wx42d447652d8a5d07取得管理员或开发者权限；当前“森STUDIO2”仅管理旧AppID wxfbb4fe883a9920e3（已确认本游戏正式小游戏AppID为wx0b874c8cc868b032）。
+- [x] 将微信小游戏项目AppID从wx42d447652d8a5d07切换至用户可控的wxfbb4fe883a9920e3，并更新发布归档命名与配置（用户已改为继续使用wx42，备用迁移不执行）。
+- [x] 为wxfbb4fe883a9920e3通过管理员账号开通微信云开发，并创建或接入该AppID可用的排行榜环境（用户已改为继续使用wx42，备用迁移不执行）。
+- [x] 在wxfbb4fe883a9920e3下重新部署排行榜云函数、更新客户端Env ID并完成时间挑战真机验收（用户已改为继续使用wx42，备用迁移不执行）。
+- [x] 核验wx42d447652d8a5d07是否为森林寻径的正式小游戏AppID；初始记录误将wx0b874c8cc868b032标记为小程序身份，现已确认它是本游戏的正式小游戏AppID。
+- [x] 核验wx42d447652d8a5d07是否为森林寻径的正式小游戏AppID；确认正式小游戏AppID为wx0b874c8cc868b032，wx42不再作为发布与云开发目标。
+- [x] 将小游戏project.config.json、发布归档命名和云开发接入目标切换为正式AppID wx0b874c8cc868b032。
+- [x] 为正式AppID wx0b874c8cc868b032开通微信云开发，创建或接入独立的排行榜环境并重新部署云函数（forest-trail-d6grbvm3o2ab75f2b）。
+- [x] 运行7项原生回归测试并构建扁平r25迁移归档；解压根目录含game.json，SHA-256为54e560fd898218755c2d77eeebcc626d77bffd2e5d2178dcbe6030297128ff5c。
+- [x] 收到正式小游戏云开发Env ID后，填入LeaderboardService并将CLOUD_RANKING_ENABLED恢复为true（forest-trail-d6grbvm3o2ab75f2b）。
+- [x] 在新云环境部署submitGameResult与getGlobalLeaderboard，创建forest_trail_results集合与两个复合索引（函数均正常；集合为ADMINONLY）。
+- [x] 构建并校验r26正式云排行榜扁平归档；根目录含game.json，SHA-256为3ae0bcb66fdb369761fbf5313b7d1116d8eae07d272b08cd6b9634b6fd4eb35d。
+- [ ] 以真实微信账号完成标准模式和时间挑战模式的云榜真机验收。
+- [ ] 将r23、r24和r25迁移记录同步推送至Lyn333/starpath-wechat-game的main分支。
+- [x] 核对候选环境forest-trail-d6grbvm3o2ab75f2b的完整Env ID、所属账号与地域；管理员登录刷新后已在上海地域CloudBase控制台确认可见。

@@ -303,6 +303,16 @@
 
 > `r22` 的原生小游戏代码、时间挑战云函数材料、回归测试、部署说明、待办与验收记录已同步至 [Lyn333/starpath-wechat-game](https://github.com/Lyn333/starpath-wechat-game) 的 `main` 分支，远程提交为 `e26fefe778beef16325c1640b5cebdc6dd61d54`。该同步包含此前尚未推送的 r13 至 r22 历史。
 
+> 已在真实云环境 `forest-trail-d2g9yvxci3e68e058` 更新 r22 时间挑战云函数。管理员已在 `submitGameResult` 和 `getGlobalLeaderboard` 的“上传代码”页分别上传 r22 ZIP，并选择“保存并安装依赖”。函数列表确认二者状态均为“正常”：提交函数更新于 2026-08-20 15:52:00，总榜函数更新于 15:56:33。当前仅待使用 r22 真机完成时间挑战，以验证每局 +8 秒、结束面板、`clock:<tier>` 云端记录与真实排名返回。
+
+> `r23` 将原生森林开场动画的默认自然播放时间从约 2.6 秒调整为 **5 秒**，轻触仍可立即跳过且只触发一次进入游戏回调。开场底部新增品牌Logo **“森Studios 2026”**，位于“轻触跳过”提示上方并随标题阶段渐显，不遮挡安全边距。专项测试断言默认时长为 5,000ms、标题与Logo均被绘制、跳过和自然结束保持幂等；全量原生回归与发布构建通过。扁平 r23 归档根目录已校验包含 `game.json`，SHA-256 为 `8f8207841819acaea8a998091d524df6e66b20fe63efe7936cd2c9125f2d2f85`。
+
+> `r24` 将开场动画默认自然播放时间延长至 **10 秒**。三行标题“森林寻径”“FOREST TRAIL”“穿过林间，找到前路”均提高字号，并以画面 50% 高度为英文标题基准，在其上、下各 54px 等距排布，形成中央区域的均匀垂直节奏；底部“森Studios 2026”Logo与“轻触跳过”仍保留。专项测试断言默认时长为 10,000ms，三行标题的纵坐标分别为中央上方、正中央和中央下方，并保持Logo、跳过及自然完成的既有行为。每日挑战、题库、开场、游戏流程、时间挑战、音效和排行榜协议的全量原生回归及发布构建均通过。扁平 r24 归档根目录已校验包含 `game.json`，SHA-256 为 `a1949594e520d88a826a5dfc82ea335fb713574c0a3a06f0b22bcab04a903c07`。
+
+> `r25` 完成正式微信小游戏 AppID 迁移：`project.config.json` 已从不属于本游戏的 `wx42d447652d8a5d07` 切换为用户确认的正式小游戏 AppID `wx0b874c8cc868b032`。旧云环境 `forest-trail-d2g9yvxci3e68e058` 不再被新 AppID 使用；在新环境开通前，排行榜客户端设置 `CLOUD_ENV="pending-wx0b874c8cc868b032"` 与 `CLOUD_RANKING_ENABLED=false`，因此不会调用 `wx.cloud.init`，避免迁移期再次出现 `invalid scope`。每日挑战、题库、开场、游戏流程、时间挑战、音效与排行榜降级协议的 7 项原生回归，以及发布包构建均已通过。扁平 r25 归档解压根目录已校验包含 `game.json`，且 `project.config.json` 内 AppID 已复核为 `wx0b874c8cc868b032`；SHA-256 为 `54e560fd898218755c2d77eeebcc626d77bffd2e5d2178dcbe6030297128ff5c`。待新 AppID 的云开发环境开通后，填入真实 Env ID、重新启用云榜并部署云函数。
+
+> `r26` 恢复正式云排行榜：客户端 `CLOUD_ENV` 已绑定 `forest-trail-d6grbvm3o2ab75f2b`，`CLOUD_RANKING_ENABLED=true`，并在新云环境部署 `submitGameResult`（Node.js 18.15）与 `getGlobalLeaderboard`（Node.js 20.19）；控制台均显示“正常”。文档型数据库已创建 `forest_trail_results` 集合并设置为 `ADMINONLY`，同时创建并核验 `scopeKey_score_desc`（非唯一：`scopeKey` 升序、`score` 降序）和 `openid_scopeKey`（非唯一：`openid` 升序、`scopeKey` 升序）两个复合索引。`pnpm run verify` 的 7 项原生回归全部通过，覆盖题库、开场、游戏流程、时间挑战、音效与云榜协议；发布构建完成。扁平 r26 归档解压根目录已校验精确包含 `game.json`，其 `project.config.json` 为 `wx0b874c8cc868b032`，且客户端云环境与开关均已复核；SHA-256 为 `3ae0bcb66fdb369761fbf5313b7d1116d8eae07d272b08cd6b9634b6fd4eb35d`。**尚待真实微信设备完成一局标准模式与一局时间挑战，以验证无 `cloud init error`、云端写入及实际排名返回。**
+
 ### References
 
 [1] [微信小游戏分包加载与包体积限制](https://developers.weixin.qq.com/minigame/dev/guide/base-ability/subPackage/useSubPackage.html)
