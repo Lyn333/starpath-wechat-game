@@ -2,7 +2,7 @@ const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
 const COMPLETION_CELEBRATION_SOURCE = "audio/completion-celebration-drum.mp3";
 
 const BACKGROUND_MUSIC_VOLUME = .7098;
-const COMPLETION_CELEBRATION_VOLUME = .6666;
+const COMPLETION_CELEBRATION_VOLUME = .9999;
 
 class SoundFx {
   constructor(enabled = true) { this.enabled = Boolean(enabled); this.context = null; this.backgroundMusic = null; this.completionCelebration = null; }
@@ -41,10 +41,10 @@ class SoundFx {
   }
   tap() { /* 按键保持静音。 */ }
   step() { /* 普通连线保持静音。 */ }
-  coin() { [[1046.5, 0, .11, .152], [1318.5, .09, .13, .136], [1568, .19, .17, .12]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "sine")); }
+  coin() { [[1046.5, 0, .11, .228], [1318.5, .09, .13, .204], [1568, .19, .17, .18]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "sine")); }
   undo() { /* 撤回保持静音。 */ }
   reset() { /* 清空保持静音。 */ }
-  complete() { [[523.25, 0, .12, .055], [659.25, .1, .14, .06], [783.99, .2, .16, .065], [1046.5, .32, .3, .075]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "triangle")); }
+  complete() { [[523.25, 0, .12, .0825], [659.25, .1, .14, .09], [783.99, .2, .16, .0975], [1046.5, .32, .3, .1125]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "triangle")); }
   destroy() { try { this.backgroundMusic?.destroy?.(); this.completionCelebration?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; this.completionCelebration = null; this.context = null; }
 }
 

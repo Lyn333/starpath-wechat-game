@@ -17,12 +17,12 @@ global.wx = {
 };
 const sound = new SoundFx(true);
 sound.coin();
-assert.deepStrictEqual(gains.map((item) => item.gain.values[1]), [0.152, 0.136, 0.12]);
+assert.deepStrictEqual(gains.map((item) => item.gain.values[1]), [0.228, 0.204, 0.18]);
 assert.strictEqual(sound.playCompletionCelebration(), true);
 const drum = audioContexts[0];
 assert.strictEqual(drum.src, "audio/completion-celebration-drum.mp3");
 assert.strictEqual(drum.loop, false);
-assert.strictEqual(drum.volume, 0.6666);
+assert.strictEqual(drum.volume, 0.9999);
 assert.deepStrictEqual(drum.calls, ["stop", "seek:0", "play"]);
 sound.setEnabled(false);
 assert.strictEqual(drum.calls.at(-1), "stop");

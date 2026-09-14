@@ -260,9 +260,9 @@
       "source": "web-audio-synthesis",
       "trigger": "next-waypoint-only",
       "gain": [
-        0.152,
-        0.136,
-        0.12
+        0.228,
+        0.204,
+        0.18
       ]
     },
     "completionCelebration": {
@@ -270,7 +270,7 @@
       "path": "audio/completion-celebration-drum.mp3",
       "bytes": 50614,
       "loop": false,
-      "volume": 0.6666
+      "volume": 0.9999
     }
   },
   "verification": {
