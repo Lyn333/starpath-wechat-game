@@ -1,0 +1,61 @@
+{
+  "catalogVersion": "2.0.0",
+  "targetTotal": 20000,
+  "existingCount": 2400,
+  "generatedCount": 17600,
+  "finalCount": 20000,
+  "difficultyTotals": {
+    "6x6": {
+      "easy": 2000,
+      "medium": 3900,
+      "hard": 3100
+    },
+    "8x8": {
+      "easy": 1500,
+      "medium": 3300,
+      "hard": 2200
+    },
+    "10x10": {
+      "easy": 600,
+      "medium": 1400,
+      "hard": 1000
+    },
+    "12x12": {
+      "easy": 300,
+      "medium": 400,
+      "hard": 300
+    }
+  },
+  "attemptsByBucket": {
+    "6x6/easy": 1700,
+    "6x6/medium": 3700,
+    "6x6/hard": 3000,
+    "8x8/easy": 1221,
+    "8x8/medium": 3150,
+    "8x8/hard": 2133,
+    "10x10/easy": 315,
+    "10x10/medium": 1250,
+    "10x10/hard": 950,
+    "12x12/easy": 0,
+    "12x12/medium": 214,
+    "12x12/hard": 219
+  },
+  "elapsedMs": 493105,
+  "qualityGates": {
+    "allSizes": [
+      "schema-valid",
+      "standard-solution-valid",
+      "stable-id",
+      "unique-visible-constraint-fingerprint"
+    ],
+    "6x6": [
+      "solver-unique",
+      "max-uniqueness-node-budget-250000"
+    ],
+    "8x8-and-above": [
+      "offline-standard-solution-valid",
+      "path-wall-compatible",
+      "runtime-unique-status-not-claimed"
+    ]
+  }
+}

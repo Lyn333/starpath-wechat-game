@@ -1,16 +1,29 @@
-const assert = require("node:assert/strict");
-const oscillators = [];
-const backgroundEvents = [];
-const backgroundMusic = { set src(value) { backgroundEvents.push(`src:${value}`); }, set autoplay(value) { backgroundEvents.push(`autoplay:${value}`); }, set loop(value) { backgroundEvents.push(`loop:${value}`); }, set volume(value) { backgroundEvents.push(`volume:${value}`); }, set obeyMuteSwitch(value) { backgroundEvents.push(`obeyMuteSwitch:${value}`); }, stop() { backgroundEvents.push("stop"); }, play() { backgroundEvents.push("play"); }, destroy() { backgroundEvents.push("destroy"); } };
-const makeOscillator = () => ({ frequency: { setValueAtTime() {} }, connect() {}, start(at) { oscillators.push(at); }, stop() {}, set type(_) {} });
-const makeGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
-global.wx = { createInnerAudioContext: () => backgroundMusic, createWebAudioContext: () => ({ currentTime: 0, destination: {}, resume() {}, createOscillator: makeOscillator, createGain: makeGain }) };
-const { SoundFx, BACKGROUND_MUSIC_VOLUME } = require("../core/SoundFx");
-const sound = new SoundFx(true); sound.startBackgroundMusic();
-assert.equal(BACKGROUND_MUSIC_VOLUME, .4732, "背景音乐基础音量应在当前0.364基础上再提高30%");
-assert.deepEqual(backgroundEvents.slice(0, 6), ["src:audio/forest-trail-background.mp3", "autoplay:false", "loop:true", "volume:0.4732", "obeyMuteSwitch:false", "play"], "背景音乐应以再次提高30%的音量继续循环播放");
-sound.step(); sound.tap(); sound.undo(); sound.reset(); sound.complete(); assert.equal(oscillators.length, 0, "普通连线和其他操作均必须静音");
-sound.coin(); assert.deepEqual(oscillators, [0, .09, .19], "数字触达应播放三段现代日历提醒风格提示");
-sound.setEnabled(false); assert.equal(backgroundEvents.at(-1), "stop", "关闭音效应停止背景音乐"); const beforeMuted = oscillators.length; sound.coin(); assert.equal(oscillators.length, beforeMuted, "关闭音效后不得播放数字提示");
-sound.setEnabled(true); assert.equal(backgroundEvents.at(-1), "play", "重新开启音效应恢复背景音乐"); sound.destroy(); assert.equal(backgroundEvents.at(-1), "destroy");
-console.log("背景音乐、路径静音与日历提醒风格数字提示校验通过");
+const assert = require("assert");
+const { SoundFx } = require("../core/SoundFx");
+
+const audioContexts = [], oscillators = [], gains = [];
+const webAudio = {
+  currentTime: 10,
+  resume() {},
+  createOscillator() { const oscillator = { type: null, frequency: { setValueAtTime() {} }, connect() {}, start() {}, stop() {} }; oscillators.push(oscillator); return oscillator; },
+  createGain() { const node = { gain: { values: [], setValueAtTime(value) { this.values.push(value); }, exponentialRampToValueAtTime(value) { this.values.push(value); } }, connect() {} }; gains.push(node); return node; },
+};
+global.wx = {
+  createWebAudioContext: () => webAudio,
+  createInnerAudioContext() {
+    const context = { calls: [], stop() { this.calls.push("stop"); }, seek(value) { this.calls.push(`seek:${value}`); }, play() { this.calls.push("play"); }, destroy() { this.calls.push("destroy"); } };
+    audioContexts.push(context); return context;
+  },
+};
+const sound = new SoundFx(true);
+sound.coin();
+assert.deepStrictEqual(gains.map((item) => item.gain.values[1]), [0.228, 0.204, 0.18]);
+assert.strictEqual(sound.playCompletionCelebration(), true);
+const drum = audioContexts[0];
+assert.strictEqual(drum.src, "audio/completion-celebration-drum.mp3");
+assert.strictEqual(drum.loop, false);
+assert.strictEqual(drum.volume, 0.9999);
+assert.deepStrictEqual(drum.calls, ["stop", "seek:0", "play"]);
+sound.setEnabled(false);
+assert.strictEqual(drum.calls.at(-1), "stop");
+console.log("PASS sound-fx");

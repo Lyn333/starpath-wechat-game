@@ -1,0 +1,25 @@
+{
+  "catalogVersion": "2.0.0",
+  "targetTotal": 20000,
+  "reference": {
+    "source": "https://www.zipgameunlimited.com/unlimited",
+    "usage": "仅参考公开的尺寸、难度与无限模式结构；不复制具体关卡。"
+  },
+  "qualityGates": {
+    "allSizes": ["schema-valid", "standard-solution-valid", "stable-id", "unique-visible-constraint-fingerprint"],
+    "6x6": ["solver-unique", "max-uniqueness-node-budget-250000"],
+    "8x8-and-above": ["offline-standard-solution-valid", "path-wall-compatible", "runtime-unique-status-not-claimed"]
+  },
+  "targetTotals": {
+    "6x6": { "easy": 2000, "medium": 3900, "hard": 3100 },
+    "8x8": { "easy": 1500, "medium": 3300, "hard": 2200 },
+    "10x10": { "easy": 600, "medium": 1400, "hard": 1000 },
+    "12x12": { "easy": 300, "medium": 400, "hard": 300 }
+  },
+  "incrementalTargets": {
+    "6x6": { "easy": 1700, "medium": 3700, "hard": 3000 },
+    "8x8": { "easy": 1200, "medium": 3100, "hard": 2100 },
+    "10x10": { "easy": 300, "medium": 1200, "hard": 900 },
+    "12x12": { "easy": 0, "medium": 200, "hard": 200 }
+  }
+}

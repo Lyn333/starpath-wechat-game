@@ -1,0 +1,10 @@
+{
+  "measuredAt": "2026-09-02",
+  "catalogFormat": "single-expanded-javascript-array",
+  "totalLevels": 20000,
+  "sourceBytes": 50331648,
+  "nodeLoadMs": 4148.91,
+  "nodeHeapDeltaMb": 322.02,
+  "decision": "不以完整题目对象数组作为小游戏启动时的运行时载荷；改为按尺寸与难度桶分片存储紧凑记录，并在选择关卡时按需生成完整题目。",
+  "qualityNote": "完整对象数组已通过全量验证，但其运行时解析与内存占用不适合作为移动小游戏启动路径。"
+}

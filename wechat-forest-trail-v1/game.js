@@ -1,28 +1,43 @@
 const { ForestTrailMiniGame } = require("./core/GameFlow");
 const { OpeningSequence } = require("./core/OpeningSequence");
+
 const canvas = wx.createCanvas();
 let game = null;
 let opening = null;
 
-function beginGame(levels, metadata) {
-  game = new ForestTrailMiniGame(canvas, levels);
-  console.log(`森林寻径微信版已载入 ${metadata.totalLevels} 道首发关卡。`);
+function loadSubpackage(name) {
+  if (!wx.loadSubpackage) return Promise.resolve({ name, loaded: true, fallback: true });
+  return new Promise((resolve) => {
+    wx.loadSubpackage({
+      name,
+      success: () => resolve({ name, loaded: true, fallback: false }),
+      fail: (error) => resolve({ name, loaded: false, fallback: false, error }),
+    });
+  });
 }
 
-function start() {
-  const { LEVELS, LEVEL_BUNDLE_METADATA } = require("./catalog/launchCatalog.js");
-  opening = new OpeningSequence(canvas, { onComplete: () => { opening = null; beginGame(LEVELS, LEVEL_BUNDLE_METADATA); } });
+function readCatalog() {
+  try { return require("./catalog/catalogManifest.js"); }
+  catch (error) {
+    console.warn("精品题包不可用，将使用 Seed 生成模式继续运行。", error);
+    return { LEVEL_BUNDLE_METADATA: { totalLevels: 0, fallback: "seed-generator" }, BUCKET_COUNTS: {}, loadBucket: () => [] };
+  }
+}
+
+function beginGame(catalog) {
+  game = new ForestTrailMiniGame(canvas, [], { catalog });
+  const count = Number(catalog?.LEVEL_BUNDLE_METADATA?.totalLevels) || 0;
+  console.log(count ? `森林寻径已接入 ${count} 道原创精品关卡，并按规格懒加载与启用 Seed 生成兜底。` : "森林寻径已启用 Seed 生成模式。");
+}
+
+async function bootstrap() {
+  const audio = await loadSubpackage("audio");
+  if (!audio.loaded) console.warn("音频分包加载失败，游戏将继续运行。", audio.error);
+  const catalog = await loadSubpackage("catalog");
+  if (!catalog.loaded) console.warn("精品题包加载失败，将尝试 Seed 生成兜底。", catalog.error);
+  const catalogData = readCatalog();
+  opening = new OpeningSequence(canvas, { onComplete: () => { opening = null; beginGame(catalogData); } });
   opening.start();
-}
-
-function loadCatalog() {
-  if (!wx.loadSubpackage) return start();
-  wx.loadSubpackage({ name: "catalog", success: start, fail: (error) => console.error("首发题库加载失败", error) });
-}
-
-function loadAudioThenCatalog() {
-  if (!wx.loadSubpackage) return loadCatalog();
-  wx.loadSubpackage({ name: "audio", success: loadCatalog, fail: (error) => { console.error("背景音乐加载失败，将以静音模式启动", error); loadCatalog(); } });
 }
 
 wx.onTouchStart((event) => { if (opening?.active) return opening.skip(); game?.handleStart(event); });
@@ -30,6 +45,6 @@ wx.onTouchMove((event) => game?.handleMove(event));
 wx.onTouchEnd(() => game?.handleEnd());
 wx.onTouchCancel(() => game?.handleEnd());
 if (wx.onWindowResize) wx.onWindowResize(() => { opening?.resize(); game?.resize(); });
-loadAudioThenCatalog();
+bootstrap();
 
-module.exports = { get game() { return game; }, get opening() { return opening; } };
+module.exports = { bootstrap, loadSubpackage, readCatalog, get game() { return game; }, get opening() { return opening; } };

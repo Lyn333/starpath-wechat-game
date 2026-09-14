@@ -1,10 +1,12 @@
 const BACKGROUND_MUSIC_SOURCE = "audio/forest-trail-background.mp3";
+const COMPLETION_CELEBRATION_SOURCE = "audio/completion-celebration-drum.mp3";
 
-const BACKGROUND_MUSIC_VOLUME = .4732;
+const BACKGROUND_MUSIC_VOLUME = .7098;
+const COMPLETION_CELEBRATION_VOLUME = .9999;
 
 class SoundFx {
-  constructor(enabled = true) { this.enabled = Boolean(enabled); this.context = null; this.backgroundMusic = null; }
-  setEnabled(enabled) { this.enabled = Boolean(enabled); if (this.enabled) this.startBackgroundMusic(); else this.backgroundMusic?.stop?.(); }
+  constructor(enabled = true) { this.enabled = Boolean(enabled); this.context = null; this.backgroundMusic = null; this.completionCelebration = null; }
+  setEnabled(enabled) { this.enabled = Boolean(enabled); if (this.enabled) this.startBackgroundMusic(); else { this.backgroundMusic?.stop?.(); this.completionCelebration?.stop?.(); } }
   ensureBackgroundMusic() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
     try {
@@ -15,6 +17,16 @@ class SoundFx {
     } catch (_) { return null; }
   }
   startBackgroundMusic() { const audio = this.ensureBackgroundMusic(); if (!audio) return false; try { audio.play?.(); return true; } catch (_) { return false; } }
+  ensureCompletionCelebration() {
+    if (!this.enabled || typeof wx === "undefined" || !wx.createInnerAudioContext) return null;
+    try {
+      if (!this.completionCelebration) {
+        this.completionCelebration = wx.createInnerAudioContext(); this.completionCelebration.src = COMPLETION_CELEBRATION_SOURCE; this.completionCelebration.autoplay = false; this.completionCelebration.loop = false; this.completionCelebration.volume = COMPLETION_CELEBRATION_VOLUME; this.completionCelebration.obeyMuteSwitch = false;
+      }
+      return this.completionCelebration;
+    } catch (_) { return null; }
+  }
+  playCompletionCelebration() { const audio = this.ensureCompletionCelebration(); if (!audio) return false; try { audio.stop?.(); audio.seek?.(0); audio.play?.(); return true; } catch (_) { return false; } }
   ensureContext() {
     if (!this.enabled || typeof wx === "undefined" || !wx.createWebAudioContext) return null;
     try { this.context ||= wx.createWebAudioContext(); this.context.resume?.(); return this.context; } catch (_) { return null; }
@@ -29,11 +41,11 @@ class SoundFx {
   }
   tap() { /* 按键保持静音。 */ }
   step() { /* 普通连线保持静音。 */ }
-  coin() { [[1046.5, 0, .11, .038], [1318.5, .09, .13, .034], [1568, .19, .17, .03]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "sine")); }
+  coin() { [[1046.5, 0, .11, .228], [1318.5, .09, .13, .204], [1568, .19, .17, .18]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "sine")); }
   undo() { /* 撤回保持静音。 */ }
   reset() { /* 清空保持静音。 */ }
-  complete() { /* 通关由最后一个路标的日历提醒提示反馈，不重复播放。 */ }
-  destroy() { try { this.backgroundMusic?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; this.context = null; }
+  complete() { [[523.25, 0, .12, .0825], [659.25, .1, .14, .09], [783.99, .2, .16, .0975], [1046.5, .32, .3, .1125]].forEach(([frequency, at, duration, gain]) => this.tone(frequency, at, duration, gain, "triangle")); }
+  destroy() { try { this.backgroundMusic?.destroy?.(); this.completionCelebration?.destroy?.(); } catch (_) { /* audio is best-effort */ } this.backgroundMusic = null; this.completionCelebration = null; this.context = null; }
 }
 
-module.exports = { SoundFx, BACKGROUND_MUSIC_VOLUME };
+module.exports = { SoundFx, BACKGROUND_MUSIC_VOLUME, COMPLETION_CELEBRATION_VOLUME };
