@@ -102,7 +102,7 @@
       "alignment": "board-left-edge",
       "style": "white-background-black-text",
       "sound": "top-right-white-background-black-text",
-      "status": "white-time-and-score-centered-on-theme-button-row"
+      "status": "white-time-and-score-centered-directly-above-status-strip"
     },
     "boardThemes": {
       "trigger": "left-top-below-info-button",

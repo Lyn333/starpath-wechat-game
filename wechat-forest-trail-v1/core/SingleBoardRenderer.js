@@ -16,8 +16,8 @@ class SingleBoardRenderer {
   clearCompletionFireworks() { this.completionFireworks = null; }
   drawCompletionFireworks(now = Date.now()) { const active = drawFireworks(this.ctx, this.completionFireworks, now); if (!active) this.completionFireworks = null; return active; }
   layout() {
-    // 146 为顶部三层控件所需高度，再加 30 留给棋盘上方的状态条。
-    const size = this.level.rows; const headerClearance = 176; const rowHeight = 34; const controlGap = 16; const outerBorder = 8;
+    // 146 顶部三层控件 + 26 时间/分数行 + 30 状态条 = 202 的棋盘上方预留高度。
+    const size = this.level.rows; const headerClearance = 202; const rowHeight = 34; const controlGap = 16; const outerBorder = 8;
     const controlHeight = outerBorder + controlGap + rowHeight * 5 + controlGap * 4; const bottomClearance = 12;
     const maxBoardHeight = this.height - headerClearance - controlHeight - bottomClearance;
     const cell = Math.max(1, Math.floor(Math.min((this.width - 38) / size, maxBoardHeight / size)));
@@ -170,12 +170,15 @@ class SingleBoardRenderer {
     const badgeSummary = view.badgeSummary || { unlocked: 0, total: 0 }, badgeButtonY = headerY + (buttonHeight + rowGap) * 2, badgeButtonWidth = 84;
     this.controls.badges = { x: this.width - 17 - badgeButtonWidth, y: badgeButtonY, width: badgeButtonWidth, height: buttonHeight };
     this.rounded(this.controls.badges.x, badgeButtonY, badgeButtonWidth, buttonHeight, 14, buttonFill, buttonBorder); c.fillStyle = buttonText; c.font = "700 11px Microsoft YaHei, sans-serif"; c.textAlign = "center"; c.fillText(`🏅 成就 ${badgeSummary.unlocked}/${badgeSummary.total}`, this.controls.badges.x + badgeButtonWidth / 2, badgeButtonY + 20);
-    // 时间与分数：白色、与“棋盘颜色”按钮同一行、垂直居中于该按钮，并以屏幕中线为轴左右对称。
-    const statusY = themeRowY + buttonHeight / 2, statusGap = 10, timerText = `◷ ${view.time}`, scoreText = view.clockActive ? `${view.clockSolved} 局` : `Points: ${view.points}`;
-    // 左侧时间受“棋盘颜色”按钮限制，右侧分数只受屏幕边缘限制；同一字号，避免两段文字大小不一。
-    const timerMaxWidth = this.width / 2 - statusGap - (boardLeft + 84 + 12), scoreMaxWidth = this.width / 2 - statusGap - 12;
-    c.fillStyle = "#FFFFFF"; c.font = `700 ${this.fitStatusFontSize([[timerText, timerMaxWidth], [scoreText, scoreMaxWidth]])}px Microsoft YaHei, sans-serif`; c.textBaseline = "middle";
-    c.textAlign = "right"; c.fillText(timerText, this.width / 2 - statusGap, statusY); c.textAlign = "left"; c.fillText(scoreText, this.width / 2 + statusGap, statusY);
+    c.textBaseline = "alphabetic"; c.textAlign = "left";
+  }
+  // 时间与分数：白色，位于状态条（数字 / 错误 / 连击）正上方，以屏幕中线为轴左右对称。
+  drawScoreTime(view) {
+    const c = this.ctx, box = this.board; if (!box) return;
+    const statusGap = 10, timerText = `◷ ${view.time}`, scoreText = view.clockActive ? `${view.clockSolved} 局` : `Points: ${view.points}`;
+    const maxWidth = this.width / 2 - statusGap - 12, y = box.top - 50;
+    c.fillStyle = "#FFFFFF"; c.font = `700 ${this.fitStatusFontSize([[timerText, maxWidth], [scoreText, maxWidth]])}px Microsoft YaHei, sans-serif`; c.textBaseline = "middle";
+    c.textAlign = "right"; c.fillText(timerText, this.width / 2 - statusGap, y); c.textAlign = "left"; c.fillText(scoreText, this.width / 2 + statusGap, y);
     c.textBaseline = "alphabetic"; c.textAlign = "left";
   }
   fitStatusFontSize(constraints, preferred = 22, minimum = 14) {
@@ -204,6 +207,7 @@ class SingleBoardRenderer {
       c.globalAlpha = isPassed && !isNext ? .72 : 1; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
     // 连击 / 路标反馈文字：飘在被触达格子上方。
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
+    this.drawScoreTime(view);
     this.drawStatusStrip(view);
   }
   // 棋盘上方一行状态：当前数字 / 错误 / 连击 / 最佳。

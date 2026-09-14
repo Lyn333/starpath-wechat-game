@@ -34,16 +34,17 @@ assert.strictEqual(renderer.controls.selectedLevel.x, renderer.board.left);
 assert.ok(renderer.controls.info.width < renderer.controls.theme.width && renderer.controls.theme.width < renderer.controls.selectedLevel.width);
 assert.ok(renderer.board.top >= 146);
 for (const label of ["i", "棋盘颜色", "已选 · 简单 6x6", "音效 开"]) assert.ok(textStyles.some((item) => item.value === label && item.fill === "#171717"));
-// 时间与分数：白色，与“棋盘颜色”按钮同一行且垂直居中，以屏幕中线为轴左右对称。
+// 时间与分数：白色，位于状态条（数字 / 错误 / 连击）正上方，以屏幕中线为轴左右对称。
 const timerDraw = textStyles.find((item) => item.value === "◷ 0:00"), scoreDraw = textStyles.find((item) => item.value === "Points: 0");
 assert.ok(timerDraw && scoreDraw, "应绘制时间与分数");
 assert.strictEqual(timerDraw.fill, "#FFFFFF"); assert.strictEqual(scoreDraw.fill, "#FFFFFF");
-const themeCenterY = renderer.controls.theme.y + renderer.controls.theme.height / 2;
-assert.strictEqual(timerDraw.y, themeCenterY); assert.strictEqual(scoreDraw.y, themeCenterY);
+assert.strictEqual(timerDraw.y, scoreDraw.y, "时间与分数应位于同一行");
+const statusStripCenterY = renderer.board.top - 22;
+assert.ok(timerDraw.y < statusStripCenterY, "时间与分数应位于状态条正上方");
+assert.ok(timerDraw.y > renderer.controls.selectedLevel.y + renderer.controls.selectedLevel.height, "时间与分数应位于顶部控件下方");
 assert.strictEqual(timerDraw.baseline, "middle"); assert.strictEqual(scoreDraw.baseline, "middle");
 assert.strictEqual(timerDraw.align, "right"); assert.strictEqual(scoreDraw.align, "left");
 assert.strictEqual(timerDraw.x + scoreDraw.x, 390, "时间与分数应以屏幕中线对称");
-assert.ok(timerDraw.x > renderer.controls.theme.x + renderer.controls.theme.width, "时间文字不应压到“棋盘颜色”按钮");
 assert.ok(fonts.some((font) => font === "700 22px Microsoft YaHei, sans-serif"));
 assert.ok(text.includes("i"));
 assert.ok(text.includes("每格只走一次，覆盖全盘并抵达末号通关。"));
