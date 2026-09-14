@@ -3,6 +3,8 @@
  * 墙体格式：H_row_col 表示 (row,col) 与 (row+1,col) 的边界；V_row_col 表示 (row,col) 与 (row,col+1) 的边界。
  */
 
+const { normalizePuzzle } = require("./puzzle/PuzzleSchema");
+
 function cellKey(cell) {
   return `${cell.row}-${cell.col}`;
 }
@@ -27,25 +29,9 @@ class TrailEngine {
   }
 
   normalizeLevel(level) {
-    if (!level || !Number.isInteger(level.rows) || !Number.isInteger(level.cols)) {
-      throw new Error("关卡必须包含 rows 和 cols。");
-    }
-    const numberByCell = new Map();
-    const waypoints = [...level.waypoints].sort((a, b) => a.number - b.number).map((item) => ({
-      number: item.number,
-      cell: copyCell(item.cell),
-    }));
-    waypoints.forEach((waypoint, index) => {
-      if (waypoint.number !== index + 1) throw new Error("路标编号必须从 1 连续递增。");
-      numberByCell.set(cellKey(waypoint.cell), waypoint.number);
-    });
-    return {
-      ...level,
-      waypoints,
-      numberByCell,
-      walls: new Set(level.walls || []),
-      solution: (level.solution || []).map(copyCell),
-    };
+    const normalized = normalizePuzzle(level);
+    const numberByCell = new Map(normalized.waypoints.map((waypoint) => [cellKey(waypoint.cell), waypoint.number]));
+    return { ...normalized, numberByCell, walls: new Set(normalized.walls) };
   }
 
   subscribe(listener) {
@@ -62,7 +48,21 @@ class TrailEngine {
       message: this.message,
       hintCells: this.hintCells.map(copyCell),
       moves: Math.max(0, this.path.length - 1),
+      errors: this.errors,
+      combo: this.combo,
+      maxCombo: this.maxCombo,
+      lastRejectedCell: this.lastRejectedCell ? copyCell(this.lastRejectedCell) : null,
+      totalWaypoints: this.level.waypoints.length,
     };
+  }
+
+  // 只有“规则性错误”计入 errors：撞墙、重踏、跳号、提前踩终点。非相邻格的滑动忽略。
+  rejectMove(cell, message) {
+    this.errors += 1;
+    this.combo = 0;
+    this.lastRejectedCell = copyCell(cell);
+    this.setMessage(message);
+    return false;
   }
 
   tryMove(cell) {
@@ -70,13 +70,11 @@ class TrailEngine {
     const candidate = copyCell(cell);
 
     if (this.path.length === 0) {
-      if (this.numberAt(candidate) !== 1) {
-        this.setMessage("请从 1 号林缘路标出发。");
-        return false;
-      }
+      if (this.numberAt(candidate) !== 1) return this.rejectMove(candidate, "请从 1 号林缘路标出发。");
       this.path = [candidate];
       this.status = "active";
       this.nextWaypoint = 2;
+      this.lastRejectedCell = null;
       this.setMessage("第一枚脚印已落下。沿林径寻找下一枚路标。");
       return true;
     }
@@ -86,28 +84,26 @@ class TrailEngine {
     if (previous && sameCell(previous, candidate)) {
       this.path.pop();
       this.nextWaypoint = this.countPassedWaypoints() + 1;
+      this.combo = 0;
       this.setMessage(this.path.length ? "已踩回上一处脚印。" : "脚印已抹平。请重新从林缘路标出发。");
       if (this.path.length === 0) this.status = "idle";
       return true;
     }
 
     if (!isAdjacent(tail, candidate)) return false;
-    if (this.isBlocked(tail, candidate)) {
-      this.setMessage("倒木与灌木挡住了这条小径。");
-      return false;
-    }
-    if (this.path.some((visited) => sameCell(visited, candidate))) {
-      this.setMessage("林径不能重踏已经走过的地面。");
-      return false;
-    }
+    if (this.isBlocked(tail, candidate)) return this.rejectMove(candidate, "倒木与灌木挡住了这条小径。");
+    if (this.path.some((visited) => sameCell(visited, candidate))) return this.rejectMove(candidate, "林径不能重踏已经走过的地面。");
 
     const waypoint = this.numberAt(candidate);
-    if (waypoint && waypoint !== this.nextWaypoint) {
-      this.setMessage(`应先经过 ${this.nextWaypoint} 号路标。`);
-      return false;
-    }
+    if (waypoint && waypoint !== this.nextWaypoint) return this.rejectMove(candidate, `应先经过 ${this.nextWaypoint} 号路标。`);
+    // 与 PuzzleValidator 保持一致：最大数字必须是整条林径的终点，否则“唯一解”门禁形同虚设。
+    const totalCells = this.level.rows * this.level.cols;
+    if (waypoint === this.level.waypoints.length && this.path.length + 1 !== totalCells) return this.rejectMove(candidate, `${waypoint} 号路标是终点，需要先走完其余林地再抵达。`);
 
     this.path.push(candidate);
+    this.lastRejectedCell = null;
+    this.combo += 1;
+    this.maxCombo = Math.max(this.maxCombo, this.combo);
     if (waypoint) {
       this.nextWaypoint += 1;
       this.setMessage(waypoint === this.level.waypoints.length ? "最后一枚路标已抵达，正在确认整条林径。" : `${waypoint} 号路标已找到。`);
@@ -133,6 +129,7 @@ class TrailEngine {
     this.path.pop();
     this.nextWaypoint = this.countPassedWaypoints() + 1;
     this.status = this.path.length ? "active" : "idle";
+    this.combo = 0;
     this.setMessage(this.path.length ? "已撤回最后一步脚印。" : "脚印已抹平。请重新从林缘路标出发。");
   }
 
@@ -141,8 +138,29 @@ class TrailEngine {
     this.status = "idle";
     this.nextWaypoint = 1;
     this.hintCells = [];
+    this.errors = 0;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.lastRejectedCell = null;
     this.message = "从林缘路标开始，把脚印留满整片林地。";
     this.emit();
+  }
+
+  serializeState() {
+    return { version: 1, levelId: this.level.id, path: this.path.map(copyCell), errors: this.errors, maxCombo: this.maxCombo, savedAt: Date.now() };
+  }
+
+  restoreState(state) {
+    if (!state || state.version !== 1 || state.levelId !== this.level.id || !Array.isArray(state.path)) return false;
+    this.reset();
+    for (const cell of state.path) {
+      if (!this.tryMove(cell)) { this.reset(); this.setMessage("存档路径无效，已重新开始。"); return false; }
+    }
+    // 回放路径本身不产生错误；恢复存档时保留上次统计。
+    this.errors = Math.max(0, Math.floor(Number(state.errors) || 0));
+    this.maxCombo = Math.max(this.maxCombo, Math.floor(Number(state.maxCombo) || 0));
+    if (this.status !== "completed") this.setMessage("已恢复上次未完成的林径。");
+    return true;
   }
 
   showHint(stepCount = 4) {
@@ -150,6 +168,12 @@ class TrailEngine {
     const from = this.path.length;
     this.hintCells = this.level.solution.slice(from, from + stepCount).map(copyCell);
     this.setMessage("阳光穿过树叶，照亮了接下来的林径。");
+  }
+
+  showHintCells(cells, message) {
+    if (this.status === "completed") return;
+    this.hintCells = (cells || []).filter((cell) => this.isInBounds(cell)).map(copyCell);
+    this.setMessage(message || "阳光穿过树叶，照亮了接下来的林径。");
   }
 
   clearHint() {

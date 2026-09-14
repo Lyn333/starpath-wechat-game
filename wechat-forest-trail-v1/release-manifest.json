@@ -1,0 +1,289 @@
+{
+  "version": "1.2.9",
+  "releasedAt": "2026-09-02",
+  "puzzleSchemaVersion": 2,
+  "progressStateVersion": 8,
+  "totalCuratedLevels": 20000,
+  "difficultyTotals": {
+    "6x6": {
+      "easy": 2000,
+      "medium": 3900,
+      "hard": 3100
+    },
+    "8x8": {
+      "easy": 1500,
+      "medium": 3300,
+      "hard": 2200
+    },
+    "10x10": {
+      "easy": 600,
+      "medium": 1400,
+      "hard": 1000
+    },
+    "12x12": {
+      "easy": 300,
+      "medium": 400,
+      "hard": 300
+    }
+  },
+  "catalog": {
+    "version": "2.0.0",
+    "source": "forest-trail-original-curated-catalog-v2",
+    "provenance": "original-seeded-generation; reference-game-structure-only; no-reference-puzzle-copying",
+    "previousCatalogLevels": 2400,
+    "originalGeneratedAdditions": 17600,
+    "delivery": "compact-sharded-seed-records-v1",
+    "bucketCount": 12,
+    "compactRecordBytes": 2616848,
+    "manifestBytes": 2391,
+    "runtimeLoad": "load one size-difficulty bucket on demand",
+    "qualityGates": {
+      "allSizes": [
+        "schema-valid",
+        "standard-solution-valid",
+        "stable-id",
+        "unique-visible-constraint-fingerprint"
+      ],
+      "6x6": [
+        "solver-unique",
+        "max-uniqueness-node-budget-250000"
+      ],
+      "8x8-and-above": [
+        "offline-standard-solution-valid",
+        "path-wall-compatible",
+        "runtime-unique-status-not-claimed"
+      ]
+    }
+  },
+  "architecture": {
+    "layers": [
+      "presentation",
+      "application",
+      "puzzle-domain",
+      "puzzle-supply",
+      "player-services",
+      "platform-services"
+    ],
+    "provider": "HybridLevelProvider",
+    "generator": "seeded-path-v2",
+    "smallBoardUniquenessGate": true,
+    "recentPuzzleLimit": 256,
+    "modes": [
+      "unlimited",
+      "daily",
+      "progressive",
+      "clock"
+    ],
+    "completionEffect": {
+      "type": "canvas-fireworks-particles",
+      "bursts": 3,
+      "particles": 66,
+      "durationMs": 2400
+    },
+    "informationPanel": {
+      "trigger": "top-left-i-button",
+      "dismiss": [
+        "close",
+        "acknowledge"
+      ],
+      "rules": [
+        "ordered-waypoints",
+        "orthogonal-moves-and-walls",
+        "visit-each-cell-once"
+      ]
+    },
+    "topControls": {
+      "layout": "left-pyramid",
+      "rows": [
+        "information",
+        "board-theme",
+        "selected-level"
+      ],
+      "alignment": "board-left-edge",
+      "style": "white-background-black-text",
+      "sound": "top-right-white-background-black-text",
+      "status": "white-time-and-score-centered-on-theme-button-row"
+    },
+    "boardThemes": {
+      "trigger": "left-top-below-info-button",
+      "layout": "two-column-color-grid",
+      "storage": "local-progress-state",
+      "source": "知笔墨 · 诗意中国色 colour cards",
+      "default": "tai-bai",
+      "defaultPathGradient": [
+        "#0E9F57",
+        "#2FE278",
+        "#087F46"
+      ],
+      "legacyThemeMigration": "tai-bai",
+      "themes": {
+        "tai-bai": "#F8F8F8",
+        "zhu-sha": "#C62918",
+        "zhu-biao": "#CF420A",
+        "teng-huang": "#FFB61E",
+        "san-qing": "#20C6E0",
+        "san-lv": "#45B9A2",
+        "yan-zhi": "#AB1D22",
+        "shu-hong": "#C72A17",
+        "zhe-shi": "#612405",
+        "mo-hei": "#090B0C",
+        "hua-qing": "#191A48",
+        "tai-qing-lan": "#012772"
+      },
+      "note": "Hex values printed on the colour cards; 肽白 card has no printed value and was pixel-sampled. All themes retain the original green path gradient"
+    },
+    "ambientWeather": {
+      "module": "core/effects/AmbientWeather.js",
+      "cycleMs": 150000,
+      "phases": [
+        "sunlit",
+        "rain",
+        "clearing"
+      ],
+      "rainWindow": [
+        0.42,
+        0.78
+      ],
+      "maxRaindrops": 72,
+      "lightShafts": 3,
+      "mistBands": 2,
+      "activeFrameMs": 33,
+      "idleFrameMs": 120,
+      "pausesOnHide": true,
+      "deterministic": "scene is a pure function of (timestamp, width, height)"
+    },
+    "scoring": {
+      "module": "core/scoring/ScoreSystem.js",
+      "base": "cells × {easy:10,medium:15,hard:20,expert:25}",
+      "speedBonusPerSecondUnderPar": 2,
+      "noMistakeBonus": 100,
+      "comboBonusPerStep": 10,
+      "winStreakBonuses": [
+        50,
+        100,
+        200
+      ],
+      "penalties": {
+        "hint": 30,
+        "undo": 10,
+        "error": 5
+      },
+      "minScore": 10,
+      "stars": {
+        "three": "under-par + zero-errors + no-hints",
+        "one": "undos>=3 or hints>=2"
+      }
+    },
+    "hints": {
+      "module": "core/scoring/HintPolicy.js",
+      "dailyFree": 3,
+      "maxStored": 9,
+      "perfectClearReward": 1,
+      "tiers": [
+        "light",
+        "path",
+        "auto"
+      ],
+      "pathHintSteps": 4,
+      "disabledInClock": true
+    },
+    "feedback": {
+      "statusStrip": [
+        "currentWaypoint",
+        "errors",
+        "combo",
+        "hintsRemaining",
+        "bestMs"
+      ],
+      "errorFlashMs": 700,
+      "comboToastEvery": 5,
+      "haptics": {
+        "error": "vibrateShort",
+        "completion": "vibrateLong"
+      }
+    },
+    "achievements": {
+      "modules": [
+        "core/achievements/BadgeCatalog.js",
+        "core/achievements/AchievementTracker.js"
+      ],
+      "launchBadges": 24,
+      "categories": [
+        "starter",
+        "speed",
+        "accuracy",
+        "memory",
+        "streak",
+        "daily",
+        "ultimate"
+      ],
+      "openTiers": [
+        "bronze",
+        "silver"
+      ],
+      "reservedTiers": [
+        "gold",
+        "diamond"
+      ],
+      "titles": 7,
+      "entry": "top-right-badges-button",
+      "pages": [
+        "badges",
+        "titles",
+        "stats"
+      ],
+      "antiAbuse": [
+        "strong-hint-voids-accuracy-speed-calm",
+        "repeat-clear-counts-cumulative-only",
+        "daily-once-per-date",
+        "streak-break-keeps-best"
+      ],
+      "memoryBadgesLockedUntilMemoryMode": true
+    }
+  },
+  "clockBonusesSeconds": {
+    "easy": 10,
+    "medium": 7,
+    "hard": 5,
+    "expert": 3
+  },
+  "appIdStatus": "configured-wx0b874c8cc868b032",
+  "audio": {
+    "backgroundMusic": {
+      "source": "original-user-provided-music",
+      "path": "audio/forest-trail-background.mp3",
+      "bytes": 3627063,
+      "loop": true,
+      "volume": 0.7098
+    },
+    "numberEffect": {
+      "source": "web-audio-synthesis",
+      "trigger": "next-waypoint-only",
+      "gain": [
+        0.152,
+        0.136,
+        0.12
+      ]
+    },
+    "completionCelebration": {
+      "source": "user-provided-drum-audio",
+      "path": "audio/completion-celebration-drum.mp3",
+      "bytes": 50614,
+      "loop": false,
+      "volume": 0.6666
+    }
+  },
+  "verification": {
+    "command": "npm run verify",
+    "offlineSourceVerification": "node scripts/verify-catalog-source-v2.cjs",
+    "runtimeJavaScriptFiles": 46,
+    "testFiles": 15,
+    "curatedLevelsValidated": 20000,
+    "catalogManifestLoadMs": 0.82,
+    "catalogManifestHeapDeltaMb": 0.05,
+    "defaultBucketLoadMs": 5.56,
+    "defaultBucketHeapDeltaMb": 0.99,
+    "singleHydrationMs": 30.05,
+    "performanceEnvironment": "Node.js sandbox; comparative measurement, not a target-device promise"
+  }
+}

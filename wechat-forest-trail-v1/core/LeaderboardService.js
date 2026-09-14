@@ -69,9 +69,19 @@ class LeaderboardService {
     this.rankings.global = Number.isInteger(rank) && Number.isInteger(total) ? { state: "ready", text: `${title}第 ${rank} 名 / ${total} 人` } : { state: "service-required", text: `${title}等待服务返回` };
     return this.rankings.global.state === "ready";
   }
-  openFriendBoard({ clock = false } = {}) {
+  openFriendBoard({ clock = false, width, height } = {}) {
     const api = platform(); if (!api?.getOpenDataContext) return false;
-    try { api.getOpenDataContext().postMessage({ type: "SHOW_FRIEND_RANK", key: clock ? CLOCK_FRIEND_SCORE_KEY : FRIEND_SCORE_KEY, title: clock ? "时间挑战好友榜" : "好友榜" }); return true; } catch (_) { return false; }
+    try {
+      const context = api.getOpenDataContext();
+      // 开放数据域绘制在 sharedCanvas 上，主域必须把它 drawImage 到屏幕，否则玩家永远看不到榜单。
+      if (context?.canvas && Number.isFinite(width) && Number.isFinite(height)) { context.canvas.width = Math.round(width); context.canvas.height = Math.round(height); }
+      context.postMessage({ type: "SHOW_FRIEND_RANK", key: clock ? CLOCK_FRIEND_SCORE_KEY : FRIEND_SCORE_KEY, title: clock ? "时间挑战好友榜" : "好友榜", width, height });
+      return true;
+    } catch (_) { return false; }
+  }
+  friendBoardCanvas() {
+    const api = platform();
+    try { return api?.getOpenDataContext?.()?.canvas || null; } catch (_) { return null; }
   }
 }
 

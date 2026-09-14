@@ -1,11 +1,48 @@
 {
-  "description": "森林寻径 v1.0：2,400题、随机题库、每日挑战与音效的微信小游戏包",
-  "packOptions": { "ignore": [ { "value": "scripts/", "type": "folder" }, { "value": "test/", "type": "folder" } ], "include": [] },
-  "setting": { "es6": true, "enhance": true, "postcss": false, "minified": true, "urlCheck": true },
+  "description": "森林寻径 v1.2.9：徽章成就与称号、评分星级与有限提示、云林动态天气",
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "scripts/",
+        "type": "folder"
+      },
+      {
+        "value": "test/",
+        "type": "folder"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true,
+    "urlCheck": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
   "compileType": "game",
   "libVersion": "3.6.2",
   "appid": "wx0b874c8cc868b032",
-  "projectname": "森林寻径 v1.0",
+  "projectname": "森林寻径 v1.2.9",
   "miniprogramRoot": "./",
-  "cloudfunctionRoot": "cloudfunctions/"
+  "cloudfunctionRoot": "cloudfunctions/",
+  "simulatorPluginLibVersion": {},
+  "isGameTourist": false,
+  "editorSetting": {}
 }

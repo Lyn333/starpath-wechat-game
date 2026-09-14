@@ -1,0 +1,24 @@
+{
+  "catalogVersion": "2.0.0",
+  "totalLevels": 20000,
+  "bucketCounts": {
+    "6x6:easy": 2000,
+    "6x6:medium": 3900,
+    "6x6:hard": 3100,
+    "8x8:easy": 1500,
+    "8x8:medium": 3300,
+    "8x8:hard": 2200,
+    "10x10:easy": 600,
+    "10x10:medium": 1400,
+    "10x10:hard": 1000,
+    "12x12:easy": 300,
+    "12x12:medium": 400,
+    "12x12:hard": 300
+  },
+  "generatedSeedRecords": 17600,
+  "compressedLegacyRecords": 2400,
+  "recordBytes": 2616848,
+  "manifestBytes": 2391,
+  "expandedSourceBytes": 49378760,
+  "externalSourcePath": "/home/ubuntu/projects/game-ab01efdc/catalog-expanded-source-v2/launchCatalog.js"
+}

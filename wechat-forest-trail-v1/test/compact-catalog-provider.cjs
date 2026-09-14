@@ -1,0 +1,21 @@
+const assert = require("assert");
+const { MemoryStorageAdapter } = require("../core/platform/StorageAdapter");
+const { ProgressStore } = require("../core/ProgressStore");
+const { HybridLevelProvider } = require("../core/providers/HybridLevelProvider");
+const catalog = require("../catalog/catalogManifest");
+
+const progress = new ProgressStore({ storage: new MemoryStorageAdapter() });
+const provider = new HybridLevelProvider({ catalog, progress });
+assert.deepStrictEqual(provider.stats().compactPools, {});
+assert.strictEqual(provider.stats().hydrated, 0);
+const easy = provider.nextUnlimited({ gridSize: "6x6", difficulty: "easy" });
+assert.strictEqual(easy.gridSize, "6x6");
+assert.strictEqual(easy.difficulty, "easy");
+assert.strictEqual(provider.stats().compactPools["6x6:easy"], 2000);
+assert.strictEqual(provider.stats().hydrated, 1);
+const hard = provider.nextUnlimited({ gridSize: "12x12", difficulty: "hard", excludeId: easy.id });
+assert.strictEqual(hard.gridSize, "12x12");
+assert.strictEqual(hard.difficulty, "hard");
+assert.strictEqual(provider.stats().compactPools["12x12:hard"], 300);
+assert.strictEqual(provider.stats().hydrated, 2);
+console.log("PASS compact-catalog-provider");
