@@ -207,13 +207,13 @@ const createGame = (progress = new ProgressStore({ storage: new MemoryStorageAda
   game.moveTo(game.current.solution[0]);
   game.selectStandard("6x6", "medium");
   assert.strictEqual(game.progress.winStreak(), 0);
-  // 提示在限时模式下不可用；提示按钮热区可点击。
+  // 提示逻辑在限时模式下不可用（提示按钮已从控制区移除，逻辑保留）。
   game.startClock("easy");
   assert.strictEqual(game.useHint(), false);
   game.destroy();
 }
 
-// 7. 渲染器：提示按钮、状态条、星级与分数拆解文案、提示高亮与错误框。
+// 7. 渲染器：控制按钮、状态条、星级与分数拆解文案、提示高亮与错误框。
 {
   global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
   const text = [], arcs = [];
@@ -225,10 +225,11 @@ const createGame = (progress = new ProgressStore({ storage: new MemoryStorageAda
   const view = { mode: "standard", progressiveLevel: 1, difficulty: "easy", difficultyLabel: "简单", gridSize: "6x6", sound: true, points: 120, time: "0:12", clockActive: false, clockSetupVisible: false, clockEnded: false, clockTiers: Object.values(CLOCK_TIERS), rankings: { friend: { text: "" }, global: { text: "总榜" } }, completion: { best: { elapsedMs: 0 }, streak: 0 }, weatherEnabled: false,
     status: { currentWaypoint: 1, totalWaypoints: level.waypoints.length, errors: 1, combo: 2, hintsRemaining: 2, bestMs: 18420 }, hintCells: [level.solution[3]], feedback: { kind: "error", cell: level.solution[5], at: Date.now() } };
   renderer.render(snapshot, view);
-  assert.ok(renderer.controls.hint, "应有提示按钮热区");
-  assert.ok(text.includes("💡 提示 ×2"));
-  assert.ok(text.some((value) => value.includes(`数字 1/${level.waypoints.length}`) && value.includes("错误 1") && value.includes("连击 ×2") && value.includes("提示 2") && value.includes("最佳 0:19")), `状态条缺失：${text.join(" | ")}`);
-  assert.ok(renderer.controls.hint.x > renderer.controls.undo.x && renderer.controls.hint.x < renderer.controls.reset.x, "提示按钮位于撤回与清空之间");
+  assert.ok(!renderer.controls.hint, "提示按钮热区应已移除");
+  assert.ok(!text.some((value) => value.includes("提示")), "控制区不应出现提示按钮文案");
+  assert.ok(text.some((value) => value.includes(`数字 1/${level.waypoints.length}`) && value.includes("错误 1") && value.includes("连击 ×2") && value.includes("最佳 0:19")), `状态条缺失：${text.join(" | ")}`);
+  assert.ok(!text.some((value) => value.includes("提示 2")), "状态条不应再显示剩余提示");
+  assert.ok(renderer.controls.undo.x < renderer.controls.reset.x, "撤回位于清空左侧");
   const hintArc = arcs.find(([x, y, r]) => Math.abs(r - renderer.board.cell * .36) < .01);
   assert.ok(hintArc, "提示格应绘制高亮圆斑");
   text.length = 0;

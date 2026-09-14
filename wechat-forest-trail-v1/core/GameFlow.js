@@ -536,7 +536,6 @@ class ForestTrailMiniGame {
     }
     if (!completed && this.renderer.hit(controls.undo, point)) return this.undo();
     if (!completed && this.renderer.hit(controls.reset, point)) return this.reset();
-    if (!completed && this.renderer.hit(controls.hint, point)) return this.useHint();
     if (this.renderer.hit(controls.clock, point)) { this.clockSetupVisible = true; this.sound.tap(); return this.render(); }
     if (this.renderer.hit(controls.daily, point)) return this.startDaily();
     if (this.renderer.hit(controls.progressive, point)) return this.startProgressive(this.progressiveLevel);

@@ -206,13 +206,12 @@ class SingleBoardRenderer {
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
     this.drawStatusStrip(view);
   }
-  // 棋盘上方一行状态：当前数字 / 错误 / 连击 / 提示 / 最佳。
+  // 棋盘上方一行状态：当前数字 / 错误 / 连击 / 最佳。
   drawStatusStrip(view) {
     const status = view.status; if (!status) return;
     const c = this.ctx, box = this.board, y = box.top - 8 - 14;
     const items = [`数字 ${status.currentWaypoint}/${status.totalWaypoints}`, `错误 ${status.errors}`];
     if (status.combo >= 2) items.push(`连击 ×${status.combo}`);
-    items.push(`提示 ${status.hintsRemaining}`);
     if (status.bestMs) items.push(`最佳 ${formatDuration(status.bestMs)}`);
     c.font = "700 11px Microsoft YaHei, sans-serif"; c.textBaseline = "middle"; c.textAlign = "center";
     const text = items.join("   ·   "); const width = (c.measureText?.(text)?.width || text.length * 7) + 20;
@@ -223,8 +222,8 @@ class SingleBoardRenderer {
   drawControls(snapshot, view) {
     const c=this.ctx,total=Math.min(this.width-36,360),left=(this.width-total)/2,gap=8,h=this.board.rowHeight,verticalGap=this.board.controlGap,top=this.board.top+this.board.width+this.board.outerBorder+verticalGap,buttonFill="#fff",textColor="#111",border="#3f2a20",selectedBorder="#d94d3f"; c.lineWidth=2;
     const button=(id,label,x,y,width,selected=false)=>{this.controls[id]={x,y,width,height:h};this.rounded(x,y,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.textAlign="center";c.fillText(label,x+width/2,y+22);};
-    const two=(total-gap)/2, three=(total-gap*2)/3, hintsLeft=view.status?.hintsRemaining ?? 0;
-    button("undo","↶ 撤回",left,top,three); button("hint",`💡 提示 ×${hintsLeft}`,left+three+gap,top,three,hintsLeft>0); button("reset","⌫ 清空",left+(three+gap)*2,top,three);
+    const two=(total-gap)/2;
+    button("undo","↶ 撤回",left,top,two); button("reset","⌫ 清空",left+two+gap,top,two);
     const difficultyRow=top+h+verticalGap; this.controls.difficulties=[]; ["简单","中等","困难"].forEach((label,index)=>{const width=(total-gap*2)/3,x=left+index*(width+gap),selected=view.difficulty===["easy","medium","hard"][index];this.controls.difficulties.push({x,y:difficultyRow,width,height:h,id:["easy","medium","hard"][index]});this.rounded(x,difficultyRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.textAlign="center";c.fillText(label,x+width/2,difficultyRow+22);});
     const sizeRow=difficultyRow+h+verticalGap; this.controls.sizes=[]; ["6x6","8x8","10x10","12x12"].forEach((label,index)=>{const width=(total-gap*3)/4,x=left+index*(width+gap),selected=view.gridSize===label;this.controls.sizes.push({x,y:sizeRow,width,height:h,id:label});this.rounded(x,sizeRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.fillText(label,x+width/2,sizeRow+22);});
     const modeRow=sizeRow+h+verticalGap; button("daily","每日挑战",left,modeRow,two,view.mode==="daily"); button("progressive",`渐进 Level ${view.progressiveLevel||1}`,left+two+gap,modeRow,two,view.mode==="progressive");
