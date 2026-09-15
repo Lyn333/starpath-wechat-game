@@ -223,17 +223,16 @@ class SingleBoardRenderer {
     // 错误反馈：被拒绝的格子红色闪烁边框。
     const feedback = view.feedback;
     if (feedback?.kind === "error" && feedback.cell) { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, .9 - age / 800); c.strokeStyle = `rgba(217,77,63,${alpha.toFixed(2)})`; c.lineWidth = 3; this.rounded(box.left + feedback.cell.col * box.cell + 2, box.top + feedback.cell.row * box.cell + 2, box.cell - 4, box.cell - 4, 6, null, c.strokeStyle); }
-    const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`)), nextNumber = snapshot.nextWaypoint;
-    level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
+    const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`));
+    level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`);
       // 全藏：未点选不画。淡影：未点选半透明。闪现：仅在闪光窗内画出未点选图案。
       if (hideIcons && !isPassed) {
         if (memoryMode === "hidden") return;
         if (memoryMode === "flash" && !mem.flashVisible) return;
       }
       const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell;
-      // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。隐藏态不画目标圈以免泄露位置。
-      if (isNext && !hideIcons) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
-      let iconAlpha = isPassed && !isNext ? .72 : 1;
+      // 连线进行中不提示下一个数字（无底圈/高亮/脉冲）；已经过的数字略淡以示完成。
+      let iconAlpha = isPassed ? .72 : 1;
       if (hideIcons && !isPassed && memoryMode === "faded") iconAlpha = FADED_ICON_ALPHA;
       c.globalAlpha = iconAlpha; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
     // 连击 / 路标反馈文字：飘在被触达格子上方。
