@@ -81,4 +81,34 @@ renderer.render(snapshot, { ...view, infoVisible: true });
 assert.ok(renderer.controls.infoClose && renderer.controls.infoDismiss);
 for (const label of ["玩法说明", "按 1、2、3、4… 的顺序经过所有数字路标。", "只能上下左右移动；不能斜走，也不能穿过墙体。", "每格只走一次，覆盖全盘并抵达末号通关。", "知道了", "关卡挑战：主题图案连线  ·  限时：倒计时连续解题"]) assert.ok(text.includes(label));
 assert.ok(!text.includes("渐进：关卡自动升级"), "玩法说明不应再提已移除的渐进模式");
+
+// 数字连线进行中：不给下一个数字画底圈/高亮，玩家自行寻找。
+{
+  const arcs = [];
+  const playTarget = {
+    setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fill() {},
+    arc(x, y, r) { arcs.push([x, y, r]); }, quadraticCurveTo() {}, rect() {},
+    fillText() {}, measureText(value) { return { width: String(value).length * 12 }; },
+    createLinearGradient() { return { addColorStop() {} }; },
+  };
+  const playContext = new Proxy(playTarget, {
+    get(object, property) { return property in object ? object[property] : () => {}; },
+    set(object, property, value) { object[property] = value; return true; },
+  });
+  const playRenderer = new SingleBoardRenderer({ getContext: () => playContext });
+  playRenderer.setLevel({ id: "render", gridSize: "6x6", difficulty: "easy", rows: 6, cols: 6, walls: [], solution, waypoints: [{ number: 1, cell: solution[0] }, { number: 2, cell: solution.at(-1) }] });
+  const haloRadius = (board) => board.cell * .3;
+  const centerOf = (board, cell) => [board.left + (cell.col + .5) * board.cell, board.top + (cell.row + .5) * board.cell];
+  const hasHaloAt = (board, cell) => {
+    const [cx, cy] = centerOf(board, cell);
+    const radius = haloRadius(board);
+    return arcs.some(([x, y, r]) => Math.abs(r - radius) < .01 && Math.abs(x - cx) < .5 && Math.abs(y - cy) < .5);
+  };
+  playRenderer.drawBoard({ status: "idle", path: [], moves: 0, nextWaypoint: 1, hintCells: [] }, { weatherEnabled: false, status: { currentWaypoint: 0, totalWaypoints: 2, errors: 0, combo: 0, bestMs: null } });
+  assert.ok(!hasHaloAt(playRenderer.board, solution[0]), "开局也不应高亮 1 号数字");
+  arcs.length = 0;
+  playRenderer.drawBoard({ status: "active", path: [solution[0]], moves: 0, nextWaypoint: 2, hintCells: [] }, { weatherEnabled: false, status: { currentWaypoint: 1, totalWaypoints: 2, errors: 0, combo: 0, bestMs: null } });
+  assert.ok(!hasHaloAt(playRenderer.board, solution.at(-1)), "连线进行中不应高亮下一个数字");
+}
+
 console.log("PASS renderer-modes");
