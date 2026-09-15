@@ -1,6 +1,7 @@
 const { normalizePuzzle } = require("../puzzle/PuzzleSchema");
 const { hashString } = require("../puzzle/SeededRandom");
-const { clockRequest, dailyRequest, progressiveRequest, unlimitedRequest } = require("../modes/ModeCatalog");
+const { clockRequest, dailyRequest, unlimitedRequest } = require("../modes/ModeCatalog");
+const { getChallengeLevel } = require("../challenge/ChallengeLevels");
 const { createCatalogPipeline, hydrateCatalogRecord, recordId } = require("./CompactCatalog");
 
 function poolKey(gridSize, difficulty) { return `${gridSize}:${difficulty}`; }
@@ -84,9 +85,9 @@ class HybridLevelProvider {
     return level;
   }
 
-  progressive(levelNumber = 1) {
-    const request = progressiveRequest(levelNumber);
-    const level = this.buildGenerated(request);
+  challenge(levelId) {
+    const level = getChallengeLevel(levelId);
+    if (!level) throw new Error(`未知的关卡挑战：${levelId}`);
     this.progress?.recordPresented?.(level);
     return level;
   }

@@ -1,4 +1,6 @@
 const { TrailEngine } = require("./TrailEngine");
+const { ChallengeEngine } = require("./challenge/ChallengeEngine");
+const { challengeThemeList } = require("./challenge/ChallengeLevels");
 const { SingleBoardRenderer } = require("./SingleBoardRenderer");
 const { ProgressStore } = require("./ProgressStore");
 const { SoundFx } = require("./SoundFx");
@@ -20,7 +22,17 @@ const WEATHER_IDLE_MS = 120;
 const HINT_DISPLAY_MS = 2200;
 const FEEDBACK_FLASH_MS = 700;
 const COMBO_TOAST_MIN = 5;
-const COMPLETION_MODAL_MODES = ["standard", "daily", "progressive"];
+const COMPLETION_MODAL_MODES = ["standard", "daily", "challenge"];
+
+// 关卡挑战星级：完全按策划案目标时间判定（提示已从游戏中移除，视为 0 次）。
+function challengeStars(level, stats) {
+  const elapsed = Math.max(0, Number(stats.elapsedMs) || 0);
+  const errors = Math.max(0, Number(stats.errors) || 0);
+  const undos = Math.max(0, Number(stats.undos) || 0);
+  if (errors === 0 && elapsed <= (level.threeStarMs || 0)) return 3;
+  if (errors <= 1 && undos < 3 && elapsed <= (level.targetMs || 0)) return 2;
+  return 1;
+}
 
 function pointFrom(event) {
   const touch = event.touches?.[0] || event.changedTouches?.[0];
@@ -43,7 +55,7 @@ class ForestTrailMiniGame {
     this.gridSize = "6x6";
     this.difficulty = "easy";
     this.mode = "standard";
-    this.progressiveLevel = this.progress.progressiveLevel?.() || 1;
+    this.challengeSelectVisible = false;
     this.dragCell = null;
     this.startedAt = Date.now();
     this.clock = null;
@@ -66,7 +78,7 @@ class ForestTrailMiniGame {
   }
 
   tickUi() {
-    if (this.mode !== "standard" && this.mode !== "daily" && this.mode !== "progressive") return;
+    if (this.mode !== "standard" && this.mode !== "daily" && this.mode !== "challenge") return;
     if (this.engine?.getSnapshot().status === "completed") return;
     this.render();
   }
@@ -148,15 +160,15 @@ class ForestTrailMiniGame {
     this.errorsAtWaypoint = {};
     this.lastPersistedPathLength = -1;
     this.renderer.setLevel(level);
-    this.engine = new TrailEngine(level);
+    this.engine = this.mode === "challenge" ? new ChallengeEngine(level) : new TrailEngine(level);
     this.unsubscribe?.();
     this.unsubscribe = null;
-    if (this.mode !== "clock") {
+    if (this.mode !== "clock" && this.mode !== "challenge") {
       const saved = restoredState || this.progress.loadActiveSession?.(level.id);
       if (saved && this.engine.restoreState(saved) && Number.isFinite(saved.elapsedMs)) this.startedAt = Date.now() - Math.max(0, saved.elapsedMs);
     }
     this.unsubscribe = this.engine.subscribe((snapshot) => {
-      if (this.mode !== "clock" && snapshot.status !== "completed" && snapshot.path.length !== this.lastPersistedPathLength) {
+      if (this.mode !== "clock" && this.mode !== "challenge" && snapshot.status !== "completed" && snapshot.path.length !== this.lastPersistedPathLength) {
         this.lastPersistedPathLength = snapshot.path.length;
         if (snapshot.path.length === 0) this.progress.clearActiveSession?.(level.id);
         else this.progress.saveActiveSession?.(level, { ...this.engine.serializeState(), elapsedMs: Date.now() - this.startedAt }, this.mode);
@@ -167,7 +179,7 @@ class ForestTrailMiniGame {
         if (this.mode === "clock" && this.clock) return this.completeClockLevel(snapshot);
         const stats = this.completionStats(snapshot);
         const breakdown = scoreBreakdown(level, stats);
-        const stars = starsFor(level, stats);
+        const stars = this.mode === "challenge" ? challengeStars(level, stats) : starsFor(level, stats);
         this.completionSummary = {
           ...this.progress.markComplete(level, {
             ...stats, moves: snapshot.moves, points: breakdown.total, stars,
@@ -275,21 +287,50 @@ class ForestTrailMiniGame {
     this.start(level);
   }
 
-  startProgressive(levelNumber = this.progressiveLevel) {
+  challengeThemesView() {
+    return challengeThemeList().map((theme) => ({
+      id: theme.id, label: theme.label, icon: theme.icon,
+      levels: theme.levels.map((level) => ({
+        id: level.id, index: level.index, title: level.title, gridSize: level.gridSize,
+        stars: this.progress.starsFor?.(level.id) || 0,
+        bestMs: this.progress.getCompletionSummary?.(level)?.best?.elapsedMs || null,
+      })),
+    }));
+  }
+
+  challengeThemeLabel(themeId) {
+    return challengeThemeList().find((theme) => theme.id === themeId)?.label || "关卡挑战";
+  }
+
+  openChallengeSelect() {
+    this.stopCompletionEffects();
+    this.completionDismissed = true;
+    this.challengeSelectVisible = true;
+    this.sound.tap();
+    return this.render();
+  }
+
+  closeChallengeSelect() {
+    this.challengeSelectVisible = false;
+    this.sound.tap();
+    return this.render();
+  }
+
+  startChallenge(levelId) {
     this.stopClock();
-    this.mode = "progressive";
+    this.mode = "challenge";
     this.clock = null;
     this.clockResult = null;
-    this.progressiveLevel = Math.max(1, Math.floor(levelNumber));
-    this.progress.setProgressiveLevel?.(this.progressiveLevel);
-    const level = this.levelProvider.progressive(this.progressiveLevel);
+    this.challengeSelectVisible = false;
+    const level = this.levelProvider.challenge(levelId);
     this.gridSize = level.gridSize;
     this.difficulty = level.difficulty;
+    this.sound.tap();
     this.start(level);
   }
 
   nextAfterCompletion() {
-    if (this.mode === "progressive") return this.startProgressive(this.progressiveLevel + 1);
+    if (this.mode === "challenge") return this.openChallengeSelect();
     return this.selectStandard();
   }
 
@@ -323,9 +364,11 @@ class ForestTrailMiniGame {
     const tier = CLOCK_TIERS[this.clock?.tierId] || this.clockResult?.tier;
     return {
       mode: this.mode,
-      progressiveLevel: this.progressiveLevel,
       clockActive: this.mode === "clock",
       clockSetupVisible: this.clockSetupVisible,
+      challengeSelectVisible: this.challengeSelectVisible,
+      challengeThemes: this.challengeSelectVisible ? this.challengeThemesView() : null,
+      challengeTitle: this.mode === "challenge" ? `${this.challengeThemeLabel(this.current?.theme)} · ${this.current?.title || ""}` : null,
       infoVisible: this.infoVisible,
       themePickerVisible: this.themePickerVisible,
       friendBoardVisible: Boolean(this.friendBoardVisible),
@@ -505,6 +548,12 @@ class ForestTrailMiniGame {
       if (this.renderer.hit(controls.clockCancel, point)) { this.clockSetupVisible = false; return this.render(); }
       return;
     }
+    if (this.challengeSelectVisible) {
+      const chosen = controls.challengeLevels?.find((item) => this.renderer.hit(item, point));
+      if (chosen) return this.startChallenge(chosen.id);
+      if (this.renderer.hit(controls.challengeClose, point)) return this.closeChallengeSelect();
+      return;
+    }
     if (this.friendBoardVisible) {
       if (this.renderer.hit(controls.friendBoardClose, point)) { this.closeFriendBoard(); return this.render(); }
       return;
@@ -538,7 +587,7 @@ class ForestTrailMiniGame {
     if (!completed && this.renderer.hit(controls.reset, point)) return this.reset();
     if (this.renderer.hit(controls.clock, point)) { this.clockSetupVisible = true; this.sound.tap(); return this.render(); }
     if (this.renderer.hit(controls.daily, point)) return this.startDaily();
-    if (this.renderer.hit(controls.progressive, point)) return this.startProgressive(this.progressiveLevel);
+    if (this.renderer.hit(controls.challenge, point)) return this.openChallengeSelect();
     const difficulty = controls.difficulties?.find((item) => this.renderer.hit(item, point));
     if (difficulty) return this.selectStandard(this.gridSize, difficulty.id);
     const size = controls.sizes?.find((item) => this.renderer.hit(item, point));
@@ -549,7 +598,7 @@ class ForestTrailMiniGame {
 
   handleMove(event) {
     const point = pointFrom(event);
-    if (!point || this.infoVisible || this.themePickerVisible || this.friendBoardVisible || this.badgesVisible || this.engine.getSnapshot().status === "completed" || this.clockSetupVisible || this.mode === "clock-ended") return;
+    if (!point || this.infoVisible || this.themePickerVisible || this.friendBoardVisible || this.badgesVisible || this.engine.getSnapshot().status === "completed" || this.clockSetupVisible || this.challengeSelectVisible || this.mode === "clock-ended" || this.mode === "challenge") return;
     const cell = this.renderer.toCell(point);
     if (!cell) return;
     const key = `${cell.row}:${cell.col}`;

@@ -31,7 +31,7 @@ class SingleBoardRenderer {
     else { c.moveTo(x + r, y); c.lineTo(x + width - r, y); c.quadraticCurveTo(x + width, y, x + width, y + r); c.lineTo(x + width, y + height - r); c.quadraticCurveTo(x + width, y + height, x + width - r, y + height); c.lineTo(x + r, y + height); c.quadraticCurveTo(x, y + height, x, y + height - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); }
     if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.stroke(); }
   }
-  static get MODAL_CONTROL_KEYS() { return ["themeClose", "themeOptions", "infoClose", "infoDismiss", "completion", "close", "next", "leaderboard", "viewBadges", "clockTiers", "clockCancel", "clockRestart", "clockClose", "clockLeaderboard", "friendBoardClose", "badgesClose", "badgeTabs", "badgeTitles", "badgePageNext", "badgePagePrev"]; }
+  static get MODAL_CONTROL_KEYS() { return ["themeClose", "themeOptions", "infoClose", "infoDismiss", "completion", "close", "next", "leaderboard", "viewBadges", "clockTiers", "clockCancel", "clockRestart", "clockClose", "clockLeaderboard", "friendBoardClose", "badgesClose", "badgeTabs", "badgeTitles", "badgePageNext", "badgePagePrev", "challengeLevels", "challengeClose"]; }
   clearModalControls() { for (const key of SingleBoardRenderer.MODAL_CONTROL_KEYS) delete this.controls[key]; }
   render(snapshot, view) {
     const c = this.ctx; c.clearRect(0, 0, this.width, this.height);
@@ -41,7 +41,7 @@ class SingleBoardRenderer {
     this.lastRainDrawn = drawWeatherRain(c, this.weatherScene);
     // 弹窗关闭后必须清掉旧热区，否则隐藏按钮仍可被“隔空”点中。
     this.clearModalControls();
-    if (view.friendBoardVisible) this.drawFriendBoard(view); else if (view.badgesVisible) this.drawBadges(view); else if (view.themePickerVisible) this.drawThemePicker(view); else if (view.infoVisible) this.drawInfo(); else if (view.completionVisible) this.drawCompletion(snapshot, view); else if (view.clockSetupVisible) this.drawClockSetup(view); else if (view.clockEnded) this.drawClockResult(view);
+    if (view.friendBoardVisible) this.drawFriendBoard(view); else if (view.badgesVisible) this.drawBadges(view); else if (view.themePickerVisible) this.drawThemePicker(view); else if (view.infoVisible) this.drawInfo(); else if (view.challengeSelectVisible) this.drawChallengeSelect(view); else if (view.completionVisible) this.drawCompletion(snapshot, view); else if (view.clockSetupVisible) this.drawClockSetup(view); else if (view.clockEnded) this.drawClockResult(view);
   }
   // 徽章图标：类别决定外形与底色，等级决定外圈；锁定态为灰底轮廓 + 锁。
   drawBadgeIcon(x, y, size, badge) {
@@ -156,7 +156,7 @@ class SingleBoardRenderer {
     });
   }
   drawHeader(snapshot, view) {
-    const c = this.ctx, headerY = 18, rowGap = 8, buttonHeight = 30, buttonFill = "#FFFFFF", buttonBorder = "#1B1B1B", buttonText = "#171717", title = view.clockActive ? `时间挑战 ${view.clockTier.label}` : view.mode === "daily" ? "每日挑战" : view.mode === "progressive" ? `Level ${view.progressiveLevel}` : `${view.difficultyLabel} ${this.level.gridSize}`;
+    const c = this.ctx, headerY = 18, rowGap = 8, buttonHeight = 30, buttonFill = "#FFFFFF", buttonBorder = "#1B1B1B", buttonText = "#171717", title = view.clockActive ? `时间挑战 ${view.clockTier.label}` : view.mode === "daily" ? "每日挑战" : view.mode === "challenge" ? (view.challengeTitle || "关卡挑战") : `${view.difficultyLabel} ${this.level.gridSize}`;
     // Using the current board layout keeps the left edge stable across 6×6 to 12×12 boards.
     const boardLeft = this.layout().left;
     const drawTopButton = (control, label, x, y, width, font = "700 11px Microsoft YaHei, sans-serif") => { this.controls[control] = { x, y, width, height: buttonHeight }; this.rounded(x, y, width, buttonHeight, 14, buttonFill, buttonBorder); c.fillStyle = buttonText; c.font = font; c.textAlign = "center"; c.fillText(label, x + width / 2, y + 20); };
@@ -193,6 +193,8 @@ class SingleBoardRenderer {
     const c = this.ctx, box = this.layout(), level = this.level, palette = getBoardTheme(view.boardTheme).palette; this.board = box; this.rounded(box.left-8, box.top-8, box.width+16, box.width+16, 14, palette.boardFill, palette.boardBorder); c.strokeStyle = palette.grid; c.lineWidth = 1;
     for (let index=0; index<=level.rows; index+=1) { c.beginPath(); c.moveTo(box.left, box.top+index*box.cell); c.lineTo(box.left+box.width, box.top+index*box.cell); c.stroke(); c.beginPath(); c.moveTo(box.left+index*box.cell, box.top); c.lineTo(box.left+index*box.cell, box.top+box.width); c.stroke(); }
     c.strokeStyle=palette.wall;c.lineWidth=Math.max(3,box.cell*.08);(level.walls||[]).forEach((wall)=>{const [direction,rowText,colText]=wall.split("_");const row=Number(rowText),col=Number(colText);c.beginPath();if(direction==="H"){const y=box.top+(row+1)*box.cell;c.moveTo(box.left+col*box.cell+box.cell*.14,y);c.lineTo(box.left+(col+1)*box.cell-box.cell*.14,y);}else{const x=box.left+(col+1)*box.cell;c.moveTo(x,box.top+row*box.cell+box.cell*.14);c.lineTo(x,box.top+(row+1)*box.cell-box.cell*.14);}c.stroke();});
+    // 关卡挑战障碍格：深灰圆角块，不可点选、不作为目标。
+    (level.blockedCells||[]).forEach((cell)=>{const bx=box.left+cell.col*box.cell,by=box.top+cell.row*box.cell;this.rounded(bx+2,by+2,box.cell-4,box.cell-4,6,"#6b7280","#374151");});
     if(snapshot.path.length){const start=snapshot.path[0],end=snapshot.path[snapshot.path.length-1],startX=box.left+(start.col+.5)*box.cell,startY=box.top+(start.row+.5)*box.cell,endX=box.left+(end.col+.5)*box.cell,endY=box.top+(end.row+.5)*box.cell;const gradient=c.createLinearGradient?.(startX,startY,endX||startX+1,endY||startY+1);if(gradient?.addColorStop){gradient.addColorStop(0,palette.pathStart);gradient.addColorStop(.5,palette.pathMiddle);gradient.addColorStop(1,palette.pathEnd);c.strokeStyle=gradient;}else c.strokeStyle=palette.pathFallback;c.lineWidth=Math.max(56/3,box.cell*38/75);c.lineCap="round";c.lineJoin="round";c.beginPath();snapshot.path.forEach((cell,index)=>{const x=box.left+(cell.col+.5)*box.cell,y=box.top+(cell.row+.5)*box.cell;if(index)c.lineTo(x,y);else c.moveTo(x,y)});c.stroke();}
     // 提示高亮：柔和金色圆斑，多格时依次减淡。
     const hintCells = view.hintCells || snapshot.hintCells || [];
@@ -204,7 +206,7 @@ class SingleBoardRenderer {
     level.waypoints.forEach((point)=>{const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell; const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
       // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。
       if (isNext) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
-      c.globalAlpha = isPassed && !isNext ? .72 : 1; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
+      c.globalAlpha = isPassed && !isNext ? .72 : 1; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
     // 连击 / 路标反馈文字：飘在被触达格子上方。
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
     this.drawScoreTime(view);
@@ -230,7 +232,7 @@ class SingleBoardRenderer {
     button("undo","↶ 撤回",left,top,two); button("reset","⌫ 清空",left+two+gap,top,two);
     const difficultyRow=top+h+verticalGap; this.controls.difficulties=[]; ["简单","中等","困难"].forEach((label,index)=>{const width=(total-gap*2)/3,x=left+index*(width+gap),selected=view.difficulty===["easy","medium","hard"][index];this.controls.difficulties.push({x,y:difficultyRow,width,height:h,id:["easy","medium","hard"][index]});this.rounded(x,difficultyRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.textAlign="center";c.fillText(label,x+width/2,difficultyRow+22);});
     const sizeRow=difficultyRow+h+verticalGap; this.controls.sizes=[]; ["6x6","8x8","10x10","12x12"].forEach((label,index)=>{const width=(total-gap*3)/4,x=left+index*(width+gap),selected=view.gridSize===label;this.controls.sizes.push({x,y:sizeRow,width,height:h,id:label});this.rounded(x,sizeRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.fillText(label,x+width/2,sizeRow+22);});
-    const modeRow=sizeRow+h+verticalGap; button("daily","每日挑战",left,modeRow,two,view.mode==="daily"); button("progressive",`渐进 Level ${view.progressiveLevel||1}`,left+two+gap,modeRow,two,view.mode==="progressive");
+    const modeRow=sizeRow+h+verticalGap; button("daily","每日挑战",left,modeRow,two,view.mode==="daily"); button("challenge","🎯 关卡挑战",left+two+gap,modeRow,two,view.mode==="challenge");
     const clockRow=modeRow+h+verticalGap; this.controls.clock={x:left,y:clockRow,width:total,height:h};this.rounded(left,clockRow,total,h,9,"#35a853","#176b46");c.fillStyle="#fff";c.font="700 13px Microsoft YaHei, sans-serif";c.fillText("⏱ 时间挑战  Beat the Clock",left+total/2,clockRow+22);c.textAlign="left";
   }
   modalFrame(height) { const w=Math.min(this.width-40,340),x=(this.width-w)/2,y=Math.max(92,(this.height-height)/2); const c=this.ctx; c.fillStyle="rgba(9,54,86,.72)";c.fillRect(0,0,this.width,this.height);this.rounded(x,y,w,height,18,"#fffdf8","#b94232");return {x,y,w,height}; }
@@ -254,6 +256,36 @@ class SingleBoardRenderer {
     c.fillStyle = "#69757a"; c.font = "11px Microsoft YaHei, sans-serif"; c.fillText("肽白为默认 · 诗意中国色 · 统一绿色连线", this.width / 2, y + 74);
     const outerInset = 20, columnGap = 8, optionWidth = (w - outerInset * 2 - columnGap) / columns;
     BOARD_THEMES.forEach((theme, index) => { const column = index % columns, row = Math.floor(index / columns); const option = { x: x + outerInset + column * (optionWidth + columnGap), y: y + 92 + row * (optionHeight + rowGap), width: optionWidth, height: optionHeight, id: theme.id }; this.controls.themeOptions.push(option); this.rounded(option.x, option.y, option.width, option.height, 10, "#fff", theme.id === active ? theme.palette.boardBorder : "#d6d0c8"); c.fillStyle = theme.swatch; c.beginPath(); c.arc(option.x + 20, option.y + 21, 11, 0, Math.PI * 2); c.fill(); c.fillStyle = "#2e3a40"; c.font = "700 10px Microsoft YaHei, sans-serif"; c.textAlign = "left"; c.fillText(theme.label, option.x + 38, option.y + 18); c.fillStyle = "#798287"; c.font = "9px sans-serif"; c.fillText(theme.subtitle, option.x + 38, option.y + 32); if (theme.id === active) { c.fillStyle = theme.palette.pathEnd; c.font = "700 12px sans-serif"; c.textAlign = "right"; c.fillText("✓", option.x + option.width - 10, option.y + 26); } });
+    c.textAlign = "left";
+  }
+  drawChallengeSelect(view) {
+    const c = this.ctx, themes = view.challengeThemes || [];
+    const rowH = 34, rowGap = 6, themeHeader = 28, themeGap = 10, titleArea = 66, bottomPad = 16, inset = 20;
+    const bodyHeight = themes.reduce((sum, theme) => sum + themeHeader + theme.levels.length * (rowH + rowGap), 0) + themeGap * Math.max(0, themes.length - 1);
+    const modalHeight = titleArea + bodyHeight + bottomPad;
+    const frame = this.modalFrame(modalHeight), { x, y, w } = frame;
+    this.controls.challengeClose = { x: x + w - 38, y: y + 12, width: 26, height: 26 };
+    this.controls.challengeLevels = [];
+    this.rounded(this.controls.challengeClose.x, this.controls.challengeClose.y, 26, 26, 13, "#f2f0ec"); c.fillStyle = "#73706a"; c.font = "700 19px sans-serif"; c.textAlign = "center"; c.fillText("×", x + w - 25, y + 31);
+    c.fillStyle = "#25313a"; c.font = "700 22px Microsoft YaHei, sans-serif"; c.fillText("关卡挑战", this.width / 2, y + 40);
+    c.fillStyle = "#69757a"; c.font = "11px Microsoft YaHei, sans-serif"; c.fillText("自由选择主题关卡 · 按图案顺序连线", this.width / 2, y + 58);
+    let cursor = y + titleArea;
+    const rowWidth = w - inset * 2;
+    themes.forEach((theme) => {
+      c.fillStyle = "#2e3a40"; c.font = "700 13px Microsoft YaHei, sans-serif"; c.textAlign = "left"; c.fillText(`${theme.icon} ${theme.label}`, x + inset, cursor + 18);
+      cursor += themeHeader;
+      theme.levels.forEach((level) => {
+        const box = { x: x + inset, y: cursor, width: rowWidth, height: rowH, id: level.id };
+        this.controls.challengeLevels.push(box);
+        this.rounded(box.x, box.y, box.width, box.height, 9, "#fff", "#d6d0c8");
+        c.fillStyle = "#2e3a40"; c.font = "700 12px Microsoft YaHei, sans-serif"; c.textAlign = "left"; c.fillText(`第${level.index}关 · ${level.title}`, box.x + 12, box.y + 15);
+        c.fillStyle = "#8a9298"; c.font = "10px Microsoft YaHei, sans-serif"; c.fillText(`${level.gridSize}${level.bestMs ? " · 最佳 " + formatDuration(level.bestMs) : ""}`, box.x + 12, box.y + 28);
+        const stars = "★".repeat(level.stars) + "☆".repeat(Math.max(0, 3 - level.stars));
+        c.fillStyle = "#f2a900"; c.font = "700 14px sans-serif"; c.textAlign = "right"; c.fillText(stars, box.x + box.width - 12, box.y + 22);
+        cursor += rowH + rowGap;
+      });
+      cursor += themeGap;
+    });
     c.textAlign = "left";
   }
   drawInfo() {

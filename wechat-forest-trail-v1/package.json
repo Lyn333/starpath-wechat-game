@@ -5,7 +5,7 @@
   "scripts": {
     "build:catalog": "node scripts/build-catalog-v2.cjs && node scripts/compact-catalog-v2.cjs",
     "check:syntax": "node test/syntax.cjs",
-    "test": "node test/puzzle-pipeline.cjs && node test/engine-restore.cjs && node test/provider-progress.cjs && node test/game-flow-architecture.cjs && node test/renderer-modes.cjs && node test/sound-fx.cjs && node test/completion-fireworks.cjs && node test/compact-catalog-provider.cjs && node test/gameplay-regressions.cjs && node test/ambient-weather.cjs && node test/scoring-hints.cjs && node test/achievements.cjs && node test/catalog-validation.cjs",
+    "test": "node test/puzzle-pipeline.cjs && node test/engine-restore.cjs && node test/provider-progress.cjs && node test/game-flow-architecture.cjs && node test/renderer-modes.cjs && node test/sound-fx.cjs && node test/completion-fireworks.cjs && node test/compact-catalog-provider.cjs && node test/gameplay-regressions.cjs && node test/ambient-weather.cjs && node test/scoring-hints.cjs && node test/achievements.cjs && node test/catalog-validation.cjs && node test/challenge.cjs",
     "verify": "npm run check:syntax && npm test"
   }
 }

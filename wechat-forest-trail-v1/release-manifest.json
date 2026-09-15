@@ -71,7 +71,7 @@
     "modes": [
       "unlimited",
       "daily",
-      "progressive",
+      "challenge",
       "clock"
     ],
     "completionEffect": {

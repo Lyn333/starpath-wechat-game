@@ -22,7 +22,7 @@
 | 题目质量控制 | 生成与验证必须成为同一管线 | 新增结构校验、标准解校验、小棋盘唯一解计数和多解加墙消歧 |
 | 难度分级 | 不只依靠棋盘尺寸 | 综合路标密度、墙密度、转弯、分支和求解统计输出难度画像 |
 | 千人千面 | 先建立可解释的轻量能力分 | 新增 0–2000 Rating、最近 256 题防重复和模式序列 |
-| 多玩法复用 | 模式不得复制规则引擎 | Daily、Unlimited、Progressive、Clock 共用 Provider、Pipeline 与 TrailEngine |
+| 多玩法复用 | 模式尽量复用共享层 | Daily、Unlimited、Clock 共用 Provider、Pipeline 与 TrailEngine；关卡挑战复用 Provider、渲染与进度层，玩法引擎为 ChallengeEngine |
 | 千万用户架构 | 客户端只预留稳定契约 | 数据库、Redis、离线生产与反作弊延后到服务端阶段 |
 
 ## 3. 已落地的分层架构
@@ -34,7 +34,7 @@
 | 表现层 | `SingleBoardRenderer` | 棋盘、控制区、模式入口、弹窗和触摸热区渲染 |
 | 应用层 | `GameFlow`、`ModeCatalog` | 局生命周期、模式切换、计时、结算和 ViewModel 组装 |
 | 题目领域层 | `PuzzleSchema`、`PuzzleGenerator`、`PuzzleValidator`、`DifficultyScorer`、`PuzzlePipeline`、`TrailEngine` | 题目契约、Seed、生成、质量门禁、难度、移动规则和局内快照 |
-| 题目供应层 | `HybridLevelProvider` | 精品题优先、Seed 生成兜底、每日题、渐进题和限时题供应 |
+| 题目供应层 | `HybridLevelProvider` | 精品题优先、Seed 生成兜底、每日题、关卡挑战题和限时题供应 |
 | 玩家服务层 | `ProgressStore`、`SkillProfile` | v1→v2 迁移、最佳成绩、连胜、能力分、防重复和未完成局恢复 |
 | 平台服务层 | `StorageAdapter`、`SoundFx`、`LeaderboardService` | 微信存储、音频和云排行榜能力 |
 
@@ -60,16 +60,16 @@
 
 `HybridLevelProvider` 通过 `catalogManifest` 按需加载“尺寸 × 难度”记录桶，并只还原当前待玩的关卡。Unlimited 优先从 20,000 道精品题中选择未完成且最近未玩的题；当对应题池耗尽或题包加载失败时，自动转入 Seed 生成兜底。启动入口也改为 Promise 化分包流程，即使 catalog 分包失败，游戏仍能依靠生成器继续运行。
 
-参考游戏的 Beat the Clock 页面为不同档位提供不同的每局奖励时间，并让难度随波次升级。[3] 新版本已把时间奖励调整为 Easy +10 秒、Medium +7 秒、Hard +5 秒、Expert +3 秒；各档位可以在若干局后提升棋盘尺寸。Daily 使用 Asia/Shanghai 日期 Seed；Progressive 从 4×4 入门，随后逐步提升到 6×6、8×8、10×10 和 12×12；Unlimited 保留玩家自由选择的 6×6–12×12 与三档难度。
+参考游戏的 Beat the Clock 页面为不同档位提供不同的每局奖励时间，并让难度随波次升级。[3] 新版本已把时间奖励调整为 Easy +10 秒、Medium +7 秒、Hard +5 秒、Expert +3 秒；各档位可以在若干局后提升棋盘尺寸。Daily 使用 Asia/Shanghai 日期 Seed；关卡挑战提供水果乐园与太空旅行两套各 5 关的主题关，玩家可自由选择、按图案顺序点选连线；Unlimited 保留玩家自由选择的 6×6–12×12 与三档难度。
 
 | 模式 | Seed/选题键 | 进度 | 结算 |
 |---|---|---|---|
 | Unlimited | `gridSize + difficulty + ordinal` | 组合序列、最近题和完成状态 | 最佳步数、时间、能力分 |
 | Daily | `Asia/Shanghai + date` | 日期完成与 streak | 当日成绩与排行榜作用域 |
-| Progressive | `level + gridSize + difficulty` | 当前 Level | 通关后自动进入下一 Level |
+| Challenge | 主题关卡固定关卡 ID（`core/challenge/ChallengeLevels.js`） | 每关星级与最佳成绩 | 按目标时间判定星级 |
 | Clock | `tier + ordinal`（Seed）+ 本局已解题数（尺寸） | 每档 ordinal 和最佳成绩 | 解题数、剩余时间与奖励秒数 |
 
-游戏控制区现已直接提供“每日挑战”和“渐进 Level”入口；限时弹窗展示每个档位的真实奖励秒数。模式仍复用同一个 `TrailEngine`，因此数字顺序、墙体、撤回、重置、音效和通关弹窗不会出现模式间分叉实现。
+游戏控制区现已直接提供“每日挑战”和“🎯 关卡挑战”入口；限时弹窗展示每个档位的真实奖励秒数。Unlimited / Daily / Clock 复用同一个 `TrailEngine`（相邻拖动、覆盖全盘）；关卡挑战改用 `ChallengeEngine`（按目标图案顺序点选、任意两格连线、不要求覆盖全盘），两者共用渲染器、进度与结算层。
 
 ## 6. 进度、能力与恢复
 
@@ -89,8 +89,8 @@
 | Seed 可复现、难度数字密度和唯一解门禁 | **通过** |
 | 规则引擎序列化与恢复 | **通过** |
 | v1→v2 存档迁移、能力分和防重复 | **通过** |
-| Unlimited、Daily、Progressive、Clock 集成流程 | **通过** |
-| 每日/渐进入口与 +10/+7/+5/+3 秒渲染 | **通过** |
+| Unlimited、Daily、Challenge、Clock 集成流程 | **通过** |
+| 每日/关卡挑战入口与 +10/+7/+5/+3 秒渲染 | **通过** |
 | 数字连线提示音与通关鼓声音效 | **通过** |
 | 原创精品题库结构、标准解与紧凑记录 | **20,000/20,000 通过** |
 

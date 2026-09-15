@@ -194,18 +194,23 @@ const createGame = (overrides = {}) => {
   resumed.destroy();
 }
 
-// 8. 渐进模式 Level 应持久化，重启后不会回到 Level 1。
+// 8. 关卡挑战：可自由选择关卡；完成后星级按目标时间持久化，重启后保留。
 {
   const storage = new MemoryStorageAdapter();
   const game = createGame({ progress: new ProgressStore({ storage }) });
-  game.startProgressive(1);
-  solve(game);
+  game.openChallengeSelect();
+  assert.strictEqual(game.challengeSelectVisible, true);
+  game.startChallenge("challenge-space-1");
+  assert.strictEqual(game.mode, "challenge");
+  assert.strictEqual(game.challengeSelectVisible, false);
+  for (const waypoint of game.current.waypoints) game.moveTo(waypoint.cell);
+  assert.strictEqual(game.engine.getSnapshot().status, "completed");
+  assert.ok(game.progress.starsFor("challenge-space-1") >= 1);
   game.nextAfterCompletion();
-  assert.strictEqual(game.progressiveLevel, 2);
+  assert.strictEqual(game.challengeSelectVisible, true, "完成后回到关卡选择");
   game.destroy();
   const restarted = createGame({ progress: new ProgressStore({ storage }) });
-  assert.strictEqual(restarted.progressiveLevel, 2);
-  assert.strictEqual(restarted.view().progressiveLevel, 2);
+  assert.ok(restarted.progress.starsFor("challenge-space-1") >= 1, "星级应持久化");
   restarted.destroy();
 }
 

@@ -31,7 +31,6 @@ function emptyState() {
     clock: { best: {}, ordinals: {} },
     soundEnabled: true,
     boardTheme: DEFAULT_BOARD_THEME_ID,
-    progressiveLevel: 1,
     streak: { count: 0, lastDate: null },
     skill: normalizeSkill(),
     hints: { remaining: 0, lastRefillDate: null },
@@ -57,11 +56,6 @@ function normalizeAchievements(value) {
     equippedTitle: titles.includes(input.equippedTitle) ? input.equippedTitle : null,
     seenEvents: Math.max(0, Math.floor(Number(input.seenEvents) || 0)),
   };
-}
-
-function normalizeProgressiveLevel(value) {
-  const level = Math.floor(Number(value));
-  return Number.isFinite(level) && level >= 1 ? level : 1;
 }
 
 function normalizeStars(value) {
@@ -94,7 +88,6 @@ function migrateState(value) {
     continuations: { ...base.continuations, ...(value.continuations || {}) },
     sequences: { ...base.sequences, ...(value.sequences || {}) },
     activeSessions: trimActiveSessions(value.activeSessions),
-    progressiveLevel: normalizeProgressiveLevel(value.progressiveLevel),
     clock: {
       best: { ...base.clock.best, ...(value.clock?.best || {}) },
       ordinals: { ...base.clock.ordinals, ...(value.clock?.ordinals || {}) },
@@ -284,8 +277,6 @@ class ProgressStore {
     return this.save();
   }
   activeSessionCount() { return Object.keys(this.state.activeSessions).length; }
-  progressiveLevel() { return normalizeProgressiveLevel(this.state.progressiveLevel); }
-  setProgressiveLevel(level) { this.state.progressiveLevel = normalizeProgressiveLevel(level); return this.save(); }
   loadActiveSession(levelId) { return this.state.activeSessions[levelId]?.engineState || null; }
   loadLatestSession({ mode, gridSize, difficulty } = {}) {
     return Object.values(this.state.activeSessions).filter((session) => (!mode || session.mode === mode) && (!gridSize || session.level?.gridSize === gridSize) && (!difficulty || session.level?.difficulty === difficulty)).sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
