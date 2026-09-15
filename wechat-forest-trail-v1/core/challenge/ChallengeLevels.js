@@ -7,8 +7,13 @@
  * 坐标：策划案用 1 基的 R 行 C 列（左上角 R1C1）；这里统一转换为 0 基 {row, col}。
  * 每关字段：id / theme / index / title / gridSize / rows / cols / difficulty /
  *          waypoints（按目标顺序，含 number、cell、icon、name）/ blockedCells（障碍格）/
- *          previewMs / hidden / targetMs / threeStarMs / sourceKind。
+ *          previewMs / hidden / memoryMode（null | faded | hidden | flash）/
+ *          targetMs / threeStarMs / sourceKind。
+ * 第 3–5 关为记忆关：3 淡影、4 全藏、5 闪现。太空第 4、5 关障碍格避开设计连线，
+ * 点空格仍忽略，但两点直线穿过障碍会拒绝。
  */
+
+const { lineCrossesBlocked } = require("./ChallengeEngine");
 
 const THEMES = [
   { id: "fruit", label: "水果乐园", icon: "🍎" },
@@ -38,14 +43,22 @@ const FRUIT_CATEGORIES = [
   { id: "tropical", label: "热带", color: "#45B9A2", names: ["西瓜", "菠萝", "猕猴桃"] },
 ];
 
-function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, showTargetName = false, targetMs, threeStarMs, icons, seq, blocked = [], categories = [] }) {
+function defaultMemoryMode(hidden, index) {
+  if (!hidden) return null;
+  if (index === 3) return "faded";
+  if (index === 5) return "flash";
+  return "hidden";
+}
+
+function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, memoryMode, showTargetName = false, targetMs, threeStarMs, icons, seq, blocked = [], categories = [] }) {
   const [rows, cols] = gridSize.split("x").map(Number);
   const waypoints = seq.map(([name, r, c], position) => ({ number: position + 1, cell: rc(r, c), icon: icons[name] || "●", name }));
   return {
     id, theme, index, title, gridSize, rows, cols, difficulty,
     sourceKind: "challenge", requireFullCoverage: false, walls: [],
     blockedCells: blocked.map(([r, c]) => rc(r, c)),
-    waypoints, previewMs, hidden, showTargetName, targetMs, threeStarMs, categories,
+    waypoints, previewMs, hidden, memoryMode: memoryMode === undefined ? defaultMemoryMode(hidden, index) : memoryMode,
+    showTargetName, targetMs, threeStarMs, categories,
   };
 }
 
@@ -95,13 +108,14 @@ const CHALLENGE_LEVELS = [
     id: "challenge-space-4", theme: "space", index: 4, title: "小行星带", gridSize: "8x8", difficulty: "hard",
     previewMs: 6000, hidden: true, targetMs: 105000, threeStarMs: 82000, icons: SPACE_ICONS,
     seq: [["火箭", 1, 1], ["月亮", 2, 6], ["太阳", 5, 8], ["地球", 8, 3], ["土星", 6, 1], ["星星", 3, 4], ["小行星", 1, 7], ["彗星", 4, 8], ["黑洞", 7, 6], ["空间站", 2, 2], ["外星人", 5, 3], ["星云", 8, 8], ["卫星", 6, 5], ["太空舱", 3, 1]],
-    blocked: [[1, 4], [2, 4], [3, 6], [4, 3], [5, 6], [6, 7], [7, 2], [8, 5]],
+    // 障碍放在设计连线以外的空格：点选仍忽略，但抄近路穿过障碍会被拒绝。
+    blocked: [[1, 5], [1, 8], [2, 1], [4, 5], [5, 6], [6, 3], [7, 8], [8, 5]],
   }),
   build({
     id: "challenge-space-5", theme: "space", index: 5, title: "穿越星云", gridSize: "8x8", difficulty: "hard",
     previewMs: 7000, hidden: true, targetMs: 150000, threeStarMs: 115000, icons: SPACE_ICONS,
     seq: [["火箭", 1, 1], ["月亮", 8, 8], ["太阳", 2, 5], ["地球", 6, 2], ["土星", 3, 7], ["星星", 5, 5], ["小行星", 1, 6], ["彗星", 7, 7], ["黑洞", 4, 2], ["空间站", 8, 3], ["外星人", 2, 1], ["星云", 6, 6], ["卫星", 3, 3], ["太空舱", 5, 8], ["探测器", 7, 1], ["虫洞", 4, 6], ["银河", 1, 4], ["超新星", 8, 5]],
-    blocked: [[1, 3], [2, 7], [3, 5], [4, 4], [5, 2], [5, 7], [6, 4], [7, 5], [8, 2], [8, 7]],
+    blocked: [[1, 3], [1, 5], [1, 7], [2, 7], [3, 8], [5, 1], [6, 1], [7, 4], [8, 2], [8, 6]],
   }),
 ];
 
@@ -167,6 +181,14 @@ function validateChallengeLevel(level) {
     if (blockedSeen.has(key)) throw new Error(`${level.id}：障碍格重复。`);
     blockedSeen.add(key);
   });
+  const modes = new Set([null, undefined, "faded", "hidden", "flash"]);
+  if (!modes.has(level.memoryMode)) throw new Error(`${level.id}：未知记忆模式 ${level.memoryMode}。`);
+  if (level.memoryMode && !level.hidden) throw new Error(`${level.id}：记忆模式需要 hidden 预览。`);
+  for (let index = 1; index < level.waypoints.length; index += 1) {
+    if (lineCrossesBlocked(level.waypoints[index - 1].cell, level.waypoints[index].cell, blocked)) {
+      throw new Error(`${level.id}：第 ${index} 到 ${index + 1} 个图案的连线穿过障碍。`);
+    }
+  }
   return true;
 }
 

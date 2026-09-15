@@ -12,6 +12,8 @@ const { createWeatherScene, drawWeatherBackdrop, drawWeatherMist, drawWeatherRai
 const { BOARD_THEMES, getBoardTheme } = require("./themes/BoardThemes");
 const { TIER_COLORS, TIER_LABELS } = require("./achievements/BadgeCatalog");
 
+const FADED_ICON_ALPHA = 0.22;
+
 class SingleBoardRenderer {
   constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext("2d"); this.level = null; this.controls = {}; this.completionFireworks = null; this.resize(); }
   resize() {
@@ -204,7 +206,9 @@ class SingleBoardRenderer {
     (level.blockedCells||[]).forEach((cell)=>{const bx=box.left+cell.col*box.cell,by=box.top+cell.row*box.cell;this.rounded(bx+2,by+2,box.cell-4,box.cell-4,6,"#6b7280","#374151");});
     // 甜酸分类光带：预览/显形时给分类格上色，隐藏记忆时只保留节奏条以免泄露位置。
     const rhythm = view.challengeRhythm;
-    const hideIcons = view.challengeMemory?.active && view.challengeMemory.hidden;
+    const mem = view.challengeMemory;
+    const hideIcons = mem?.active && mem.hidden;
+    const memoryMode = mem?.mode || "hidden";
     if (rhythm?.active && !hideIcons) {
       rhythm.groups.forEach((group) => {
         const fill = colorAlpha(group.color, group.current ? .34 : .16);
@@ -221,11 +225,17 @@ class SingleBoardRenderer {
     if (feedback?.kind === "error" && feedback.cell) { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, .9 - age / 800); c.strokeStyle = `rgba(217,77,63,${alpha.toFixed(2)})`; c.lineWidth = 3; this.rounded(box.left + feedback.cell.col * box.cell + 2, box.top + feedback.cell.row * box.cell + 2, box.cell - 4, box.cell - 4, 6, null, c.strokeStyle); }
     const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`)), nextNumber = snapshot.nextWaypoint;
     level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
-      if (hideIcons && !isPassed) return;
+      // 全藏：未点选不画。淡影：未点选半透明。闪现：仅在闪光窗内画出未点选图案。
+      if (hideIcons && !isPassed) {
+        if (memoryMode === "hidden") return;
+        if (memoryMode === "flash" && !mem.flashVisible) return;
+      }
       const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell;
       // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。隐藏态不画目标圈以免泄露位置。
       if (isNext && !hideIcons) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
-      c.globalAlpha = isPassed && !isNext ? .72 : 1; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
+      let iconAlpha = isPassed && !isNext ? .72 : 1;
+      if (hideIcons && !isPassed && memoryMode === "faded") iconAlpha = FADED_ICON_ALPHA;
+      c.globalAlpha = iconAlpha; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
     // 连击 / 路标反馈文字：飘在被触达格子上方。
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
     this.drawScoreTime(view);
@@ -414,4 +424,4 @@ class SingleBoardRenderer {
   hit(box, point) { return box && point.x>=box.x && point.x<=box.x+box.width && point.y>=box.y && point.y<=box.y+box.height; }
 }
 
-module.exports = { SingleBoardRenderer };
+module.exports = { SingleBoardRenderer, FADED_ICON_ALPHA };

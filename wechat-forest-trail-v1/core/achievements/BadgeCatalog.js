@@ -8,7 +8,7 @@
  *   一次性条件写在 progress 里返回 0/1，即“发生过一次”
  *
  * ctx 是刚结束的这一局的上下文（见 AchievementTracker.buildContext）；stats 是长期累计统计。
- * 记忆类徽章依赖 ctx.memoryMode。关卡挑战第 3–5 关以 hidden 记忆模式计入；淡影 / 闪现仍待独立玩法。
+ * 记忆类徽章依赖 ctx.memoryMode。关卡挑战第 3 关为淡影、第 4 关为全藏、第 5 关为闪现。
  */
 
 const TIERS = ["bronze", "silver", "gold", "diamond"];
@@ -62,7 +62,7 @@ const BADGES = [
     tiers: ladder(1, 5, (n) => `最后 5 个数字全部一次完成，达成 ${n} 局`), progress: (stats) => stats.calmFinishClears },
   { id: "speed-master", name: "速度大师", category: "speed", icon: "»", hint: "6×6、8×8、10×10 都达到目标时间",
     tiers: single("在 6×6、8×8、10×10 三种尺寸均在目标时间内完成"), progress: (stats) => once(["6x6", "8x8", "10x10"].every((size) => (stats.underParBySize[size] || 0) >= 1)) },
-  // —— 记忆挑战（关卡挑战隐藏关以 memoryMode: "hidden" 计入；淡影 / 闪现仍锁定）——
+  // —— 记忆挑战（关卡挑战第 3 关 faded、第 4 关 hidden、第 5 关 flash）——
   { id: "faint-walker", name: "淡影行者", category: "memory", icon: "◌", hint: "半透明数字模式完成 5 局",
     tiers: ladder(5, 15, (n) => `半透明数字模式完成 ${n} 局`), progress: (stats) => stats.memoryClearsByMode.faded || 0 },
   { id: "photographic", name: "过目不忘", category: "memory", icon: "◉7", hint: "完全隐藏模式零错误完成",

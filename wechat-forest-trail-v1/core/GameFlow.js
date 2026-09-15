@@ -24,7 +24,14 @@ const FEEDBACK_FLASH_MS = 700;
 const COMBO_TOAST_MIN = 5;
 // 记忆关：点错后短暂显形，帮助玩家纠正记忆，然后重新隐藏。
 const CHALLENGE_REVEAL_MS = 500;
+const CHALLENGE_FLASH_CYCLE_MS = 2000;
+const CHALLENGE_FLASH_ON_MS = 700;
 const COMPLETION_MODAL_MODES = ["standard", "daily", "challenge"];
+
+function challengeFlashVisible(now, previewUntil) {
+  const elapsed = Math.max(0, now - (previewUntil || 0));
+  return elapsed % CHALLENGE_FLASH_CYCLE_MS < CHALLENGE_FLASH_ON_MS;
+}
 
 // 关卡挑战星级：完全按策划案目标时间判定（提示已从游戏中移除，视为 0 次）。
 function challengeStars(level, stats) {
@@ -190,8 +197,9 @@ class ForestTrailMiniGame {
           ...this.progress.markComplete(level, {
             ...stats, moves: snapshot.moves, points: breakdown.total, stars,
             mode: this.mode, parTimeMs: breakdown.parTimeMs, hintTiers: [...this.hintTiers], lastWaypointsClean: this.lastWaypointsClean(snapshot),
-            memoryMode: this.mode === "challenge" && level.hidden ? "hidden" : null,
+            memoryMode: this.mode === "challenge" ? (level.memoryMode || (level.hidden ? "hidden" : null)) : null,
             previewSeconds: this.mode === "challenge" && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined,
+            flashCombo: this.mode === "challenge" ? snapshot.maxFlashCombo || snapshot.flashCombo || 0 : undefined,
           }),
           breakdown, stars, labels: completionLabels(level, stats), stats,
         };
@@ -355,7 +363,7 @@ class ForestTrailMiniGame {
     return this.mode === "challenge" && this.current?.hidden === true && Date.now() < this.challengePreviewUntil;
   }
 
-  // 记忆关的显示状态：预览中/纠错显形中为“显形”，否则隐藏未点选图案。
+  // 记忆关显示状态：预览/纠错显形为“显形”；其后按 memoryMode 淡影 / 全藏 / 闪现。
   challengeMemoryView(snapshot) {
     const level = this.current;
     if (this.mode !== "challenge" || !level?.hidden) return null;
@@ -364,12 +372,16 @@ class ForestTrailMiniGame {
     const revealing = now < this.challengeRevealUntil;
     const completed = snapshot.status === "completed";
     const hidden = previewRemainingMs <= 0 && !revealing && !completed;
+    const mode = level.memoryMode || "hidden";
     const target = level.waypoints.find((waypoint) => waypoint.number === snapshot.nextWaypoint) || null;
     return {
       active: true,
       previewRemainingMs,
       revealing,
       hidden,
+      mode,
+      faded: hidden && mode === "faded",
+      flashVisible: hidden && mode === "flash" && challengeFlashVisible(now, this.challengePreviewUntil),
       currentIcon: completed ? null : target?.icon || null,
       currentName: completed ? null : target?.name || null,
       showName: level.showTargetName === true,
@@ -697,4 +709,4 @@ class ForestTrailMiniGame {
   }
 }
 
-module.exports = { CLOCK_BONUS_MS, CLOCK_DURATION_MS, CLOCK_TIERS, COMPLETION_MODAL_MODES, ForestTrailMiniGame, UI_TICK_MS, WEATHER_ACTIVE_MS, WEATHER_IDLE_MS, formatTime };
+module.exports = { CLOCK_BONUS_MS, CLOCK_DURATION_MS, CLOCK_TIERS, CHALLENGE_FLASH_CYCLE_MS, CHALLENGE_FLASH_ON_MS, COMPLETION_MODAL_MODES, ForestTrailMiniGame, UI_TICK_MS, WEATHER_ACTIVE_MS, WEATHER_IDLE_MS, challengeFlashVisible, formatTime };
