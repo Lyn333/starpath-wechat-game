@@ -203,9 +203,13 @@ class SingleBoardRenderer {
     const feedback = view.feedback;
     if (feedback?.kind === "error" && feedback.cell) { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, .9 - age / 800); c.strokeStyle = `rgba(217,77,63,${alpha.toFixed(2)})`; c.lineWidth = 3; this.rounded(box.left + feedback.cell.col * box.cell + 2, box.top + feedback.cell.row * box.cell + 2, box.cell - 4, box.cell - 4, 6, null, c.strokeStyle); }
     const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`)), nextNumber = snapshot.nextWaypoint;
-    level.waypoints.forEach((point)=>{const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell; const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
-      // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。
-      if (isNext) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
+    // 记忆隐藏：未点选的图案不显示（位置与图标都隐藏），也不画目标圈，玩家凭记忆点选。
+    const hideIcons = view.challengeMemory?.active && view.challengeMemory.hidden;
+    level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
+      if (hideIcons && !isPassed) return;
+      const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell;
+      // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。隐藏态不画目标圈以免泄露位置。
+      if (isNext && !hideIcons) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
       c.globalAlpha = isPassed && !isNext ? .72 : 1; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
     // 连击 / 路标反馈文字：飘在被触达格子上方。
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
@@ -216,6 +220,20 @@ class SingleBoardRenderer {
   drawStatusStrip(view) {
     const status = view.status; if (!status) return;
     const c = this.ctx, box = this.board, y = box.top - 8 - 14;
+    // 记忆关：状态条位置改为显示预览倒计时或“当前要找的图案”。
+    const memory = view.challengeMemory;
+    if (memory?.active) {
+      let text;
+      if (memory.previewRemainingMs > 0) text = `👀 记住图案位置 · ${Math.ceil(memory.previewRemainingMs / 1000)}`;
+      else if (memory.currentIcon) text = `找出 ${memory.currentIcon}${memory.showName && memory.currentName ? " " + memory.currentName : ""}`;
+      else text = "全部找到！";
+      c.font = "700 13px Microsoft YaHei, sans-serif"; c.textBaseline = "middle"; c.textAlign = "center";
+      const bannerWidth = (c.measureText?.(text)?.width || text.length * 9) + 24;
+      this.rounded(this.width / 2 - bannerWidth / 2, y - 12, bannerWidth, 24, 12, "rgba(20,40,54,.86)");
+      c.fillStyle = "#ffffff"; c.fillText(text, this.width / 2, y);
+      c.textBaseline = "alphabetic"; c.textAlign = "left";
+      return;
+    }
     const items = [`数字 ${status.currentWaypoint}/${status.totalWaypoints}`, `错误 ${status.errors}`];
     if (status.combo >= 2) items.push(`连击 ×${status.combo}`);
     if (status.bestMs) items.push(`最佳 ${formatDuration(status.bestMs)}`);

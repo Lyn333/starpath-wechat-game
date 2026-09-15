@@ -22,6 +22,8 @@ const WEATHER_IDLE_MS = 120;
 const HINT_DISPLAY_MS = 2200;
 const FEEDBACK_FLASH_MS = 700;
 const COMBO_TOAST_MIN = 5;
+// 记忆关：点错后短暂显形，帮助玩家纠正记忆，然后重新隐藏。
+const CHALLENGE_REVEAL_MS = 500;
 const COMPLETION_MODAL_MODES = ["standard", "daily", "challenge"];
 
 // 关卡挑战星级：完全按策划案目标时间判定（提示已从游戏中移除，视为 0 次）。
@@ -56,6 +58,8 @@ class ForestTrailMiniGame {
     this.difficulty = "easy";
     this.mode = "standard";
     this.challengeSelectVisible = false;
+    this.challengePreviewUntil = 0;
+    this.challengeRevealUntil = 0;
     this.dragCell = null;
     this.startedAt = Date.now();
     this.clock = null;
@@ -325,8 +329,38 @@ class ForestTrailMiniGame {
     const level = this.levelProvider.challenge(levelId);
     this.gridSize = level.gridSize;
     this.difficulty = level.difficulty;
+    // 记忆关：进入前给出预览倒计时；非记忆关直接开始。
+    this.challengePreviewUntil = level.hidden ? Date.now() + (level.previewMs || 0) : 0;
+    this.challengeRevealUntil = 0;
+    if (this.challengeRevealTimer) { clearTimeout(this.challengeRevealTimer); this.challengeRevealTimer = null; }
     this.sound.tap();
     this.start(level);
+  }
+
+  // 预览阶段：记忆关开局的观察倒计时，期间图案全部可见且不接受点选。
+  challengePreviewActive() {
+    return this.mode === "challenge" && this.current?.hidden === true && Date.now() < this.challengePreviewUntil;
+  }
+
+  // 记忆关的显示状态：预览中/纠错显形中为“显形”，否则隐藏未点选图案。
+  challengeMemoryView(snapshot) {
+    const level = this.current;
+    if (this.mode !== "challenge" || !level?.hidden) return null;
+    const now = Date.now();
+    const previewRemainingMs = Math.max(0, this.challengePreviewUntil - now);
+    const revealing = now < this.challengeRevealUntil;
+    const completed = snapshot.status === "completed";
+    const hidden = previewRemainingMs <= 0 && !revealing && !completed;
+    const target = level.waypoints.find((waypoint) => waypoint.number === snapshot.nextWaypoint) || null;
+    return {
+      active: true,
+      previewRemainingMs,
+      revealing,
+      hidden,
+      currentIcon: completed ? null : target?.icon || null,
+      currentName: completed ? null : target?.name || null,
+      showName: level.showTargetName === true,
+    };
   }
 
   nextAfterCompletion() {
@@ -369,6 +403,7 @@ class ForestTrailMiniGame {
       challengeSelectVisible: this.challengeSelectVisible,
       challengeThemes: this.challengeSelectVisible ? this.challengeThemesView() : null,
       challengeTitle: this.mode === "challenge" ? `${this.challengeThemeLabel(this.current?.theme)} · ${this.current?.title || ""}` : null,
+      challengeMemory: this.challengeMemoryView(snapshot),
       infoVisible: this.infoVisible,
       themePickerVisible: this.themePickerVisible,
       friendBoardVisible: Boolean(this.friendBoardVisible),
@@ -435,7 +470,17 @@ class ForestTrailMiniGame {
     const expectedWaypoint = this.engine.nextWaypoint;
     const errorsBefore = this.engine.errors;
     if (!this.engine.tryMove(cell)) {
-      if (this.engine.errors > errorsBefore) { this.errorsAtWaypoint[expectedWaypoint] = (this.errorsAtWaypoint[expectedWaypoint] || 0) + 1; this.flash({ kind: "error", cell }); this.vibrate("short"); }
+      if (this.engine.errors > errorsBefore) {
+        this.errorsAtWaypoint[expectedWaypoint] = (this.errorsAtWaypoint[expectedWaypoint] || 0) + 1;
+        this.flash({ kind: "error", cell });
+        this.vibrate("short");
+        // 记忆关：点错后短暂显形 0.5 秒帮助纠正记忆，然后重新隐藏。
+        if (this.mode === "challenge" && this.current?.hidden) {
+          this.challengeRevealUntil = Date.now() + CHALLENGE_REVEAL_MS;
+          if (this.challengeRevealTimer) clearTimeout(this.challengeRevealTimer);
+          this.challengeRevealTimer = setTimeout(() => { this.challengeRevealTimer = null; this.render(); }, CHALLENGE_REVEAL_MS + 20);
+        }
+      }
       return false;
     }
     if (this.hintTimer) this.clearHintDisplay();
@@ -593,7 +638,7 @@ class ForestTrailMiniGame {
     const size = controls.sizes?.find((item) => this.renderer.hit(item, point));
     if (size) return this.selectStandard(size.id, this.difficulty);
     const cell = this.renderer.toCell(point);
-    if (cell && this.moveTo(cell)) this.dragCell = `${cell.row}:${cell.col}`;
+    if (cell && !this.challengePreviewActive() && this.moveTo(cell)) this.dragCell = `${cell.row}:${cell.col}`;
   }
 
   handleMove(event) {
@@ -619,6 +664,8 @@ class ForestTrailMiniGame {
     this.hintTimer = null;
     if (this.flashTimer) clearTimeout(this.flashTimer);
     this.flashTimer = null;
+    if (this.challengeRevealTimer) clearTimeout(this.challengeRevealTimer);
+    this.challengeRevealTimer = null;
     if (this.friendBoardTimer) clearInterval(this.friendBoardTimer);
     this.friendBoardTimer = null;
     this.unsubscribe?.();

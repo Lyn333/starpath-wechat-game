@@ -29,14 +29,14 @@ const SPACE_ICONS = {
 
 function rc(r, c) { return { row: r - 1, col: c - 1 }; }
 
-function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, targetMs, threeStarMs, icons, seq, blocked = [] }) {
+function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, showTargetName = false, targetMs, threeStarMs, icons, seq, blocked = [] }) {
   const [rows, cols] = gridSize.split("x").map(Number);
   const waypoints = seq.map(([name, r, c], position) => ({ number: position + 1, cell: rc(r, c), icon: icons[name] || "●", name }));
   return {
     id, theme, index, title, gridSize, rows, cols, difficulty,
     sourceKind: "challenge", requireFullCoverage: false, walls: [],
     blockedCells: blocked.map(([r, c]) => rc(r, c)),
-    waypoints, previewMs, hidden, targetMs, threeStarMs,
+    waypoints, previewMs, hidden, showTargetName, targetMs, threeStarMs,
   };
 }
 
@@ -53,7 +53,7 @@ const CHALLENGE_LEVELS = [
   }),
   build({
     id: "challenge-fruit-3", theme: "fruit", index: 3, title: "水果记忆秀", gridSize: "6x6", difficulty: "medium",
-    previewMs: 5000, hidden: true, targetMs: 75000, threeStarMs: 58000, icons: FRUIT_ICONS,
+    previewMs: 5000, hidden: true, showTargetName: true, targetMs: 75000, threeStarMs: 58000, icons: FRUIT_ICONS,
     seq: [["苹果", 1, 1], ["香蕉", 6, 2], ["西瓜", 2, 4], ["草莓", 5, 6], ["葡萄", 3, 2], ["橙子", 4, 5], ["菠萝", 1, 6], ["桃子", 2, 1], ["蓝莓", 6, 6], ["猕猴桃", 4, 2], ["樱桃", 5, 1], ["柠檬", 3, 5], ["苹果切片", 2, 6], ["水果篮", 5, 3]],
   }),
   build({

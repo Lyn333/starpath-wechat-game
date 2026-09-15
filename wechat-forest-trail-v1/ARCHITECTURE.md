@@ -69,7 +69,7 @@
 | Challenge | 主题关卡固定关卡 ID（`core/challenge/ChallengeLevels.js`） | 每关星级与最佳成绩 | 按目标时间判定星级 |
 | Clock | `tier + ordinal`（Seed）+ 本局已解题数（尺寸） | 每档 ordinal 和最佳成绩 | 解题数、剩余时间与奖励秒数 |
 
-游戏控制区现已直接提供“每日挑战”和“🎯 关卡挑战”入口；限时弹窗展示每个档位的真实奖励秒数。Unlimited / Daily / Clock 复用同一个 `TrailEngine`（相邻拖动、覆盖全盘）；关卡挑战改用 `ChallengeEngine`（按目标图案顺序点选、任意两格连线、不要求覆盖全盘），两者共用渲染器、进度与结算层。
+游戏控制区现已直接提供“每日挑战”和“🎯 关卡挑战”入口；限时弹窗展示每个档位的真实奖励秒数。Unlimited / Daily / Clock 复用同一个 `TrailEngine`（相邻拖动、覆盖全盘）；关卡挑战改用 `ChallengeEngine`（按目标图案顺序点选、任意两格连线、不要求覆盖全盘），两者共用渲染器、进度与结算层。关卡挑战每套第 3–5 关为记忆关：`GameFlow` 记录预览截止时间与纠错显形截止时间，`view().challengeMemory` 向渲染器提供预览倒计时、是否隐藏与“当前目标图案”；隐藏态下渲染器不绘制未点选图案与目标圈，状态条改显当前目标（`showTargetName` 控制是否显示名称）。
 
 ## 6. 进度、能力与恢复
 
