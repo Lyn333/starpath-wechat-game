@@ -10,7 +10,8 @@ const ORIGINAL_GREEN_PATH = {
 };
 
 function theme(id, label, subtitle, boardFill, boardBorder, grid, wall, number, extra = {}) {
-  return { id, label, subtitle, swatch: boardFill, palette: { boardFill, boardBorder, grid, wall, number, ...ORIGINAL_GREEN_PATH }, unlock: extra.unlock || null };
+  const path = extra.path || ORIGINAL_GREEN_PATH;
+  return { id, label, subtitle, swatch: boardFill, palette: { boardFill, boardBorder, grid, wall, number, ...path }, unlock: extra.unlock || null };
 }
 
 const BOARD_THEMES = [
@@ -27,6 +28,11 @@ const BOARD_THEMES = [
   theme("hua-qing", "花青", "蓼蓝为蓝", "#191A48", "#9EA0D6", "rgba(255,255,255,.20)", "#D4D5F5", "#F1F1FF"),
   theme("tai-qing-lan", "酞青蓝", "铜酞青", "#012772", "#8FAEE8", "rgba(255,255,255,.22)", "#CBDBFA", "#EFF4FF"),
   theme("fruit-grove", "果园暮光", "通关水果乐园解锁", "#FFF1D6", "#E0A86A", "rgba(120,70,20,.18)", "#8A4B1A", "#4A2A12", { unlock: { challengeTheme: "fruit", hint: "完成水果乐园全部关卡解锁" } }),
+  theme("harvest-realm", "丰收秘境", "通关丰收秘境解锁", "#F4E1B5", "#C4892A", "rgba(120,70,20,.20)", "#8A4B1A", "#4A2A12", { unlock: { challengeLevel: "challenge-fruit-5", hint: "完成丰收秘境解锁" } }),
+  theme("rainbow-fruit", "彩虹水果", "三星通关丰收秘境解锁", "#FFF7E8", "#E36A3E", "rgba(227,106,62,.18)", "#AB1D22", "#4A2A12", {
+    unlock: { challengeLevel: "challenge-fruit-5", minStars: 3, hint: "三星通关丰收秘境解锁" },
+    path: { pathStart: "#FF6B8A", pathMiddle: "#FFD35A", pathEnd: "#45B9A2", pathFallback: "#9B7CFF" },
+  }),
   theme("nebula-night", "星云夜航", "通关太空旅行解锁", "#16122C", "#8B7CFF", "rgba(255,255,255,.16)", "#D7CFFF", "#F4F0FF", { unlock: { challengeTheme: "space", hint: "完成太空旅行全部关卡解锁" } }),
 ];
 
