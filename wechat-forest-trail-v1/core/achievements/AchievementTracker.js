@@ -52,6 +52,8 @@ function emptyStats() {
     spaceThemeStars: 0,
     challengeClears: 0,
     challengeStars: 0,
+    fruitHarvestClears: 0,
+    fruitPerfectHarvest: 0,
   };
 }
 
@@ -140,6 +142,10 @@ function applyCompletion(previousStats, ctx) {
     stats.spaceThemeStars = Math.max(stats.spaceThemeStars, nonNegativeInt(ctx.spaceThemeStars));
     stats.challengeClears = Math.max(stats.challengeClears, nonNegativeInt(ctx.challengeClears));
     stats.challengeStars = Math.max(stats.challengeStars, nonNegativeInt(ctx.challengeStars));
+    if (ctx.levelId === "challenge-fruit-5") {
+      stats.fruitHarvestClears += 1;
+      if (ctx.fruitPerfect) stats.fruitPerfectHarvest += 1;
+    }
   }
   return stats;
 }
@@ -173,7 +179,7 @@ function diffUnlocks(previousUnlocked, evaluations, now) {
   return { unlocked, events };
 }
 
-function unlockedTitles(unlocked) { return TITLES.filter((title) => title.unlocked(unlocked)).map((title) => title.id); }
+function unlockedTitles(unlocked, stats = {}) { return TITLES.filter((title) => title.unlocked(unlocked, stats)).map((title) => title.id); }
 
 // 结果页“距离下一徽章”：取剩余最少的两枚（只看已有进度或已解锁的路线）。
 function nearestGoals(evaluations, limit = 2) {

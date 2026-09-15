@@ -1,5 +1,5 @@
 /**
- * 徽章图鉴：首发 27 枚（原 24 + 关卡挑战 3），只开放铜牌 / 银牌两级，数据结构预留金 / 钻。
+ * 徽章图鉴：首发 28 枚（含水果记忆大师），默认只开放铜牌 / 银牌两级；水果记忆大师为钻石牌。
  *
  * 每枚徽章：
  *   id / name / category / shape / hint（未解锁时的方向提示）
@@ -92,6 +92,8 @@ const BADGES = [
     tiers: ladder(5, 15, (n) => n === 5 ? "完成太空旅行全部 5 关" : "太空旅行累计 15 星"), progress: (stats) => (stats.spaceThemeStars || 0) >= 15 ? 15 : (stats.spaceThemeClears || 0) },
   { id: "challenge-collector", name: "主题收藏家", category: "challenge", icon: "🎯", hint: "完成两套主题共 10 关",
     tiers: ladder(10, 30, (n) => n === 10 ? "完成全部 10 个主题关卡" : "主题关卡累计 30 星"), progress: (stats) => (stats.challengeStars || 0) >= 30 ? 30 : (stats.challengeClears || 0) },
+  { id: "fruit-memory-master", name: "水果记忆大师", category: "challenge", icon: "💎", hint: "完美通关丰收秘境", maxTier: "diamond",
+    tiers: [{ tier: "diamond", target: 1, describe: "完美通关丰收秘境" }], progress: (stats) => once((stats.fruitPerfectHarvest || 0) >= 1) },
   { id: "ultimate-memory", name: "终极记忆者", category: "ultimate", icon: "✦", hint: "获得全部基础记忆徽章",
     tiers: single("获得全部基础记忆徽章"), progress: (stats, ctx, unlocked) => once(MEMORY_BASE_BADGES.every((id) => unlocked?.[id])) },
 ];
@@ -105,13 +107,17 @@ const TITLES = [
   { id: "blind-expert", name: "盲连专家", condition: "获得“盲连专家”徽章", unlocked: (unlocked) => Boolean(unlocked["blind-expert"]) },
   { id: "daily-challenger", name: "每日挑战者", condition: "今日签到达到银牌", unlocked: (unlocked) => unlocked["daily-checkin"]?.tier === "silver" },
   { id: "theme-master", name: "主题大师", condition: "完成两套主题关卡", unlocked: (unlocked) => Boolean(unlocked["fruit-harvest"] && unlocked["space-voyage"]) },
+  { id: "orchard-navigator", name: "果园领航员", condition: "首次完成丰收秘境", unlocked: (unlocked, stats) => (stats?.fruitHarvestClears || 0) >= 1 || Boolean(unlocked["fruit-memory-master"]) },
   { id: "focus-master", name: "专注大师", condition: "一笔不错与完美棋盘均达银牌", unlocked: (unlocked) => unlocked["flawless-stroke"]?.tier === "silver" && unlocked["perfect-board"]?.tier === "silver" },
   { id: "ultimate-linker", name: "终极连线者", condition: "解锁全部首发徽章", unlocked: (unlocked) => BADGES.every((badge) => unlocked[badge.id]) },
 ];
 
 function tierIndex(tier) { return TIERS.indexOf(tier); }
 function badgeById(id) { return BADGES.find((badge) => badge.id === id) || null; }
-function tiersAvailable(badge, maxTier = LAUNCH_MAX_TIER) { return badge.tiers.filter((step) => tierIndex(step.tier) <= tierIndex(maxTier)); }
+function tiersAvailable(badge, maxTier = LAUNCH_MAX_TIER) {
+  const cap = badge.maxTier || maxTier;
+  return badge.tiers.filter((step) => tierIndex(step.tier) <= tierIndex(cap));
+}
 
 // 由累计值推出当前等级与下一档进度。
 function evaluateBadge(badge, stats, ctx = {}, unlocked = {}, maxTier = LAUNCH_MAX_TIER) {

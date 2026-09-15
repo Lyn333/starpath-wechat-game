@@ -4,8 +4,14 @@ const { CLOCK_TIERS } = require("../core/modes/ModeCatalog");
 const { BOARD_THEMES, DEFAULT_BOARD_THEME_ID } = require("../core/themes/BoardThemes");
 
 assert.strictEqual(DEFAULT_BOARD_THEME_ID, "tai-bai");
-assert.strictEqual(BOARD_THEMES.length, 14);
-for (const theme of BOARD_THEMES) assert.deepStrictEqual([theme.palette.pathStart, theme.palette.pathMiddle, theme.palette.pathEnd], ["#0E9F57", "#2FE278", "#087F46"]);
+assert.strictEqual(BOARD_THEMES.length, 16);
+for (const theme of BOARD_THEMES) {
+  if (theme.id === "rainbow-fruit") {
+    assert.deepStrictEqual([theme.palette.pathStart, theme.palette.pathMiddle, theme.palette.pathEnd], ["#FF6B8A", "#FFD35A", "#45B9A2"]);
+    continue;
+  }
+  assert.deepStrictEqual([theme.palette.pathStart, theme.palette.pathMiddle, theme.palette.pathEnd], ["#0E9F57", "#2FE278", "#087F46"]);
+}
 
 global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
 const text = [], textStyles = [], gradients = [], lineWidths = [], fonts = [];
@@ -61,24 +67,54 @@ for (const label of ["+10 秒", "+7 秒", "+5 秒", "+3 秒"]) assert.ok(text.in
 renderer.render(snapshot, { ...view, boardTheme: "zhu-sha" });
 assert.deepStrictEqual(gradients.slice(-3), [[0, "#0E9F57"], [0.5, "#2FE278"], [1, "#087F46"]]);
 renderer.render(snapshot, { ...view, themePickerVisible: true, boardTheme: "zhu-sha" });
-assert.strictEqual(renderer.controls.themeOptions.length, 14);
+assert.strictEqual(renderer.controls.themeOptions.length, 16);
 assert.ok(renderer.controls.themeClose);
 assert.strictEqual(renderer.controls.themeOptions[0].id, "tai-bai");
 assert.ok(renderer.controls.themeOptions[0].x < renderer.controls.themeOptions[1].x);
 assert.strictEqual(renderer.controls.themeOptions[0].y, renderer.controls.themeOptions[1].y);
-for (const label of ["棋盘颜色", "肽白为默认 · 诗意中国色 · 主题关解锁奖励皮肤", "肽白", "硃砂", "硃磦", "藤黄", "三青", "三绿", "胭脂", "曙红", "赭石", "墨黑", "花青", "酞青蓝", "果园暮光", "星云夜航"]) assert.ok(text.includes(label), `缺少主题文案：${label}`);
+for (const label of ["棋盘颜色", "肽白为默认 · 诗意中国色 · 主题关解锁奖励皮肤", "肽白", "硃砂", "硃磦", "藤黄", "三青", "三绿", "胭脂", "曙红", "赭石", "墨黑", "花青", "酞青蓝", "果园暮光", "丰收秘境", "彩虹水果", "星云夜航"]) assert.ok(text.includes(label), `缺少主题文案：${label}`);
 assert.ok(!text.some((value) => value.includes("色值取自")), "选色弹窗不应再显示色卡来源说明");
 // 去掉底部说明后，弹窗应紧贴最后一行选项收口，不留大块空白。
 const lastThemeOption = renderer.controls.themeOptions.at(-1);
 const themeModalTop = renderer.controls.themeClose.y - 12, themeModalBottom = themeModalTop + renderer.lastThemeModalHeight;
 assert.strictEqual(themeModalBottom - (lastThemeOption.y + lastThemeOption.height), 14);
-for (const [id, fill] of [["tai-bai", "#F8F8F8"], ["zhu-sha", "#C62918"], ["zhu-biao", "#CF420A"], ["teng-huang", "#FFB61E"], ["san-qing", "#20C6E0"], ["san-lv", "#45B9A2"], ["yan-zhi", "#AB1D22"], ["shu-hong", "#C72A17"], ["zhe-shi", "#612405"], ["mo-hei", "#090B0C"], ["hua-qing", "#191A48"], ["tai-qing-lan", "#012772"], ["fruit-grove", "#FFF1D6"], ["nebula-night", "#16122C"]]) {
+for (const [id, fill] of [["tai-bai", "#F8F8F8"], ["zhu-sha", "#C62918"], ["zhu-biao", "#CF420A"], ["teng-huang", "#FFB61E"], ["san-qing", "#20C6E0"], ["san-lv", "#45B9A2"], ["yan-zhi", "#AB1D22"], ["shu-hong", "#C72A17"], ["zhe-shi", "#612405"], ["mo-hei", "#090B0C"], ["hua-qing", "#191A48"], ["tai-qing-lan", "#012772"], ["fruit-grove", "#FFF1D6"], ["harvest-realm", "#F4E1B5"], ["rainbow-fruit", "#FFF7E8"], ["nebula-night", "#16122C"]]) {
   const theme = BOARD_THEMES.find((item) => item.id === id);
   assert.ok(theme, `缺少主题：${id}`);
   assert.strictEqual(theme.palette.boardFill, fill, `${id} 棋盘底色应与色卡一致`);
 }
 renderer.render(snapshot, { ...view, infoVisible: true });
 assert.ok(renderer.controls.infoClose && renderer.controls.infoDismiss);
-for (const label of ["玩法说明", "按 1、2、3、4… 的顺序经过所有数字路标。", "只能上下左右移动；不能斜走，也不能穿过墙体。", "每格只走一次，覆盖全盘并抵达末号通关。", "知道了", "关卡挑战：主题图案连线  ·  限时：倒计时连续解题"]) assert.ok(text.includes(label));
+for (const label of ["玩法说明", "按 1、2、3、4… 的顺序经过所有数字路标。", "只能上下左右移动；不能斜走，也不能穿过墙体。", "每格只走一次，覆盖全盘并抵达末号通关。", "知道了", "水果乐园：10秒记忆盲连全盘  ·  太空：图案点选"]) assert.ok(text.includes(label));
 assert.ok(!text.includes("渐进：关卡自动升级"), "玩法说明不应再提已移除的渐进模式");
+
+// 数字连线进行中：不给下一个数字画底圈/高亮，玩家自行寻找。
+{
+  const arcs = [];
+  const playTarget = {
+    setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fill() {},
+    arc(x, y, r) { arcs.push([x, y, r]); }, quadraticCurveTo() {}, rect() {},
+    fillText() {}, measureText(value) { return { width: String(value).length * 12 }; },
+    createLinearGradient() { return { addColorStop() {} }; },
+  };
+  const playContext = new Proxy(playTarget, {
+    get(object, property) { return property in object ? object[property] : () => {}; },
+    set(object, property, value) { object[property] = value; return true; },
+  });
+  const playRenderer = new SingleBoardRenderer({ getContext: () => playContext });
+  playRenderer.setLevel({ id: "render", gridSize: "6x6", difficulty: "easy", rows: 6, cols: 6, walls: [], solution, waypoints: [{ number: 1, cell: solution[0] }, { number: 2, cell: solution.at(-1) }] });
+  const haloRadius = (board) => board.cell * .3;
+  const centerOf = (board, cell) => [board.left + (cell.col + .5) * board.cell, board.top + (cell.row + .5) * board.cell];
+  const hasHaloAt = (board, cell) => {
+    const [cx, cy] = centerOf(board, cell);
+    const radius = haloRadius(board);
+    return arcs.some(([x, y, r]) => Math.abs(r - radius) < .01 && Math.abs(x - cx) < .5 && Math.abs(y - cy) < .5);
+  };
+  playRenderer.drawBoard({ status: "idle", path: [], moves: 0, nextWaypoint: 1, hintCells: [] }, { weatherEnabled: false, status: { currentWaypoint: 0, totalWaypoints: 2, errors: 0, combo: 0, bestMs: null } });
+  assert.ok(!hasHaloAt(playRenderer.board, solution[0]), "开局也不应高亮 1 号数字");
+  arcs.length = 0;
+  playRenderer.drawBoard({ status: "active", path: [solution[0]], moves: 0, nextWaypoint: 2, hintCells: [] }, { weatherEnabled: false, status: { currentWaypoint: 1, totalWaypoints: 2, errors: 0, combo: 0, bestMs: null } });
+  assert.ok(!hasHaloAt(playRenderer.board, solution.at(-1)), "连线进行中不应高亮下一个数字");
+}
+
 console.log("PASS renderer-modes");

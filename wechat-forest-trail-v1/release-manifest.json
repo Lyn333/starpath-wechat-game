@@ -133,13 +133,17 @@
         "hua-qing": "#191A48",
         "tai-qing-lan": "#012772",
         "fruit-grove": "#FFF1D6",
+        "harvest-realm": "#F4E1B5",
+        "rainbow-fruit": "#FFF7E8",
         "nebula-night": "#16122C"
       },
       "rewardSkins": {
         "fruit-grove": "complete-all-fruit-challenge-levels",
+        "harvest-realm": "complete-fruit-level-5",
+        "rainbow-fruit": "three-star-fruit-level-5",
         "nebula-night": "complete-all-space-challenge-levels"
       },
-      "note": "Hex values printed on the colour cards; 肽白 card has no printed value and was pixel-sampled. All themes retain the original green path gradient"
+      "note": "Hex values printed on the colour cards; 肽白 card has no printed value and was pixel-sampled. Rainbow fruit path is the harvest-secret reward exception to the shared green gradient."
     },
     "ambientWeather": {
       "module": "core/effects/AmbientWeather.js",

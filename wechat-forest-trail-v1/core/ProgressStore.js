@@ -32,6 +32,7 @@ function emptyState() {
     clock: { best: {}, ordinals: {} },
     soundEnabled: true,
     boardTheme: DEFAULT_BOARD_THEME_ID,
+    fruitTutorialSeen: false,
     streak: { count: 0, lastDate: null },
     skill: normalizeSkill(),
     hints: { remaining: 0, lastRefillDate: null },
@@ -99,6 +100,7 @@ function migrateState(value) {
     // Prior palette IDs (forest / DULUX / Pantone sets) are retired in favour of the 诗意中国色 set.
     // Any older preference safely adopts the new 肽白 default; new IDs remain persistent.
     boardTheme: isBoardThemeId(value.boardTheme) ? value.boardTheme : base.boardTheme,
+    fruitTutorialSeen: Boolean(value.fruitTutorialSeen),
     hints: { remaining: Math.max(0, Math.floor(Number(value.hints?.remaining) || 0)), lastRefillDate: value.hints?.lastRefillDate || null },
     stars: normalizeStars(value.stars),
     records: normalizeRecords(value.records),
@@ -184,6 +186,8 @@ class ProgressStore {
       memoryMode: result.memoryMode || (result.mode === "challenge" && level.hidden ? "hidden" : null),
       previewSeconds: result.previewSeconds ?? (result.mode === "challenge" && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined),
       flashCombo: result.flashCombo,
+      levelId: level.id,
+      fruitPerfect: Boolean(result.fruitPerfect),
       fruitThemeClears: fruit.cleared, spaceThemeClears: space.cleared,
       fruitThemeStars: fruit.stars, spaceThemeStars: space.stars,
       challengeClears: fruit.cleared + space.cleared, challengeStars: fruit.stars + space.stars,
@@ -191,7 +195,7 @@ class ProgressStore {
     const stats = applyCompletion(previous.stats, ctx);
     const evaluations = evaluateAll(stats, ctx, previous.unlocked);
     const { unlocked, events } = diffUnlocks(previous.unlocked, evaluations, score.completedAt);
-    const titles = unlockedTitles(unlocked);
+    const titles = unlockedTitles(unlocked, stats);
     const newTitles = titles.filter((id) => !previous.titles.includes(id));
     this.state.achievements = { ...previous, stats, unlocked, titles, equippedTitle: previous.equippedTitle && titles.includes(previous.equippedTitle) ? previous.equippedTitle : previous.equippedTitle };
     this.lastAchievementEvaluations = evaluations;
@@ -296,9 +300,18 @@ class ProgressStore {
   setBoardTheme(themeId) { if (!isBoardThemeId(themeId) || !this.isBoardThemeUnlocked(themeId)) return false; this.state.boardTheme = themeId; return this.save(); }
   isBoardThemeUnlocked(themeId) {
     const theme = BOARD_THEMES.find((item) => item.id === themeId);
-    if (!theme?.unlock?.challengeTheme) return true;
-    return this.challengeProgress().find((item) => item.id === theme.unlock.challengeTheme)?.complete === true;
+    const unlock = theme?.unlock;
+    if (!unlock) return true;
+    if (unlock.challengeLevel) {
+      if (!this.isCompleted(unlock.challengeLevel)) return false;
+      if (unlock.minStars) return (this.starsFor(unlock.challengeLevel) || 0) >= unlock.minStars;
+      return true;
+    }
+    if (unlock.challengeTheme) return this.challengeProgress().find((item) => item.id === unlock.challengeTheme)?.complete === true;
+    return true;
   }
+  fruitTutorialSeen() { return Boolean(this.state.fruitTutorialSeen); }
+  markFruitTutorialSeen() { this.state.fruitTutorialSeen = true; return this.save(); }
   challengeProgress() { return challengeRewardProgress(this.state.completed, this.state.stars); }
   boardThemeUnlocks() { return Object.fromEntries(BOARD_THEMES.map((theme) => [theme.id, this.isBoardThemeUnlocked(theme.id)])); }
   boardTheme() {

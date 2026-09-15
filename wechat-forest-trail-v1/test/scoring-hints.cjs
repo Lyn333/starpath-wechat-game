@@ -232,6 +232,14 @@ const createGame = (progress = new ProgressStore({ storage: new MemoryStorageAda
   assert.ok(renderer.controls.undo.x < renderer.controls.reset.x, "撤回位于清空左侧");
   const hintArc = arcs.find(([x, y, r]) => Math.abs(r - renderer.board.cell * .36) < .01);
   assert.ok(hintArc, "提示格应绘制高亮圆斑");
+  const nextHaloRadius = renderer.board.cell * .3;
+  const nextPoint = level.waypoints.find((point) => point.number === snapshot.nextWaypoint);
+  const nextX = renderer.board.left + (nextPoint.cell.col + .5) * renderer.board.cell;
+  const nextY = renderer.board.top + (nextPoint.cell.row + .5) * renderer.board.cell;
+  assert.ok(!arcs.some(([x, y, r]) => Math.abs(r - nextHaloRadius) < .01 && Math.abs(x - nextX) < .5 && Math.abs(y - nextY) < .5), "连线进行中不应给下一个数字画底圈");
+  arcs.length = 0;
+  renderer.drawBoard(snapshot, { ...view, hintCells: [] });
+  assert.ok(!arcs.some(([, , r]) => Math.abs(r - nextHaloRadius) < .01), "无玩家提示时棋盘不应出现下一个数字底圈");
   text.length = 0;
   renderer.render({ ...snapshot, status: "completed", path: level.solution, nextWaypoint: level.waypoints.length + 1 }, { ...view, completionVisible: true, completion: { best: { elapsedMs: 16800 }, streak: 3, winStreak: 3, stars: 2, labels: ["Great", "Fast"], stats: { errors: 1, hints: 0 }, breakdown: { base: 360, speedBonus: 40, noMistakeBonus: 0, comboBonus: 50, streakBonus: 100, hintPenalty: 0, undoPenalty: 0, errorPenalty: 5, total: 545 } } });
   assert.strictEqual(text.filter((value) => value === "★").length, 3);

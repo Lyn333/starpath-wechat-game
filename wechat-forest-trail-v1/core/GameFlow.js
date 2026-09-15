@@ -1,6 +1,8 @@
 const { TrailEngine } = require("./TrailEngine");
 const { ChallengeEngine } = require("./challenge/ChallengeEngine");
+const { FruitParadiseEngine } = require("./challenge/FruitParadiseEngine");
 const { challengeThemeList, challengeRhythmView } = require("./challenge/ChallengeLevels");
+const { dealFruitIcons, fruitCompletionLabels, fruitScoreBreakdown, fruitStars, FRUIT_HIDE_MS, FRUIT_PREVIEW_MS, FRUIT_REPLAY_MS } = require("./challenge/FruitParadise");
 const { SingleBoardRenderer } = require("./SingleBoardRenderer");
 const { ProgressStore } = require("./ProgressStore");
 const { SoundFx } = require("./SoundFx");
@@ -67,6 +69,12 @@ class ForestTrailMiniGame {
     this.challengeSelectVisible = false;
     this.challengePreviewUntil = 0;
     this.challengeRevealUntil = 0;
+    this.fruitTutorialVisible = false;
+    this.fruitHideUntil = 0;
+    this.fruitConnectEndsAt = 0;
+    this.fruitFailedVisible = false;
+    this.fruitReplayUntil = 0;
+    this.wasFailed = false;
     this.dragCell = null;
     this.startedAt = Date.now();
     this.clock = null;
@@ -88,10 +96,32 @@ class ForestTrailMiniGame {
     Promise.resolve(this.leaderboard.initialize()).finally(() => this.render());
   }
 
+  isFruitCover() { return this.mode === "challenge" && this.current?.playStyle === "fruit-cover"; }
+  isTapChallenge() { return this.mode === "challenge" && this.current?.playStyle !== "fruit-cover"; }
+
   tickUi() {
     if (this.mode !== "standard" && this.mode !== "daily" && this.mode !== "challenge") return;
-    if (this.engine?.getSnapshot().status === "completed") return;
+    const snapshot = this.engine?.getSnapshot();
+    if (snapshot?.status === "completed") return;
+    if (snapshot?.status === "failed") {
+      if (this.fruitReplayUntil && Date.now() < this.fruitReplayUntil) this.render();
+      return;
+    }
+    if (this.isFruitCover()) this.tickFruitTimers();
     this.render();
+  }
+
+  tickFruitTimers() {
+    const now = Date.now();
+    if (this.fruitTutorialVisible) return;
+    if (this.challengePreviewUntil && now >= this.challengePreviewUntil && !this.fruitHideUntil) {
+      this.fruitHideUntil = now + FRUIT_HIDE_MS;
+    }
+    if (this.fruitHideUntil && now >= this.fruitHideUntil && !this.fruitConnectEndsAt) {
+      this.fruitConnectEndsAt = now + (this.current.connectMs || 0);
+      this.startedAt = now;
+    }
+    if (this.fruitConnectEndsAt && now >= this.fruitConnectEndsAt) this.engine.fail("时间耗尽");
   }
 
   // 天气动画：雨/雾阶段 ~30fps，晴光阶段降到低频，只依赖渲染器上一帧的场景判断。
@@ -171,8 +201,12 @@ class ForestTrailMiniGame {
     this.hintTiers = [];
     this.errorsAtWaypoint = {};
     this.lastPersistedPathLength = -1;
+    this.wasFailed = false;
+    this.fruitFailedVisible = false;
     this.renderer.setLevel(level);
-    this.engine = this.mode === "challenge" ? new ChallengeEngine(level) : new TrailEngine(level);
+    this.engine = this.mode === "challenge"
+      ? (level.playStyle === "fruit-cover" ? new FruitParadiseEngine(level) : new ChallengeEngine(level))
+      : new TrailEngine(level);
     this.unsubscribe?.();
     this.unsubscribe = null;
     if (this.mode !== "clock" && this.mode !== "challenge") {
@@ -185,26 +219,44 @@ class ForestTrailMiniGame {
         if (snapshot.path.length === 0) this.progress.clearActiveSession?.(level.id);
         else this.progress.saveActiveSession?.(level, { ...this.engine.serializeState(), elapsedMs: Date.now() - this.startedAt }, this.mode);
       }
+      if (snapshot.status === "failed" && !this.wasFailed) {
+        this.wasFailed = true;
+        this.fruitFailedVisible = this.isFruitCover();
+        this.fruitReplayUntil = Date.now() + FRUIT_REPLAY_MS;
+        this.vibrate("short");
+      }
       if (snapshot.status === "completed" && !this.wasCompleted) {
         this.wasCompleted = true;
         this.completedAt = Date.now();
         if (this.mode === "clock" && this.clock) return this.completeClockLevel(snapshot);
+        const fruit = level.playStyle === "fruit-cover";
         const stats = this.completionStats(snapshot);
-        const breakdown = scoreBreakdown(level, stats);
-        const stars = this.mode === "challenge" ? challengeStars(level, stats) : starsFor(level, stats);
+        if (fruit) { stats.covered = snapshot.covered || snapshot.path.length; stats.failed = false; }
+        const breakdown = fruit ? fruitScoreBreakdown(level, stats) : scoreBreakdown(level, stats);
+        const stars = fruit ? fruitStars(level, stats) : this.mode === "challenge" ? challengeStars(level, stats) : starsFor(level, stats);
         const rewardsBefore = this.progress.challengeProgress?.() || [];
+        if (fruit && (level.index >= 3 || level.id === "challenge-fruit-1")) this.fruitReplayUntil = Date.now() + FRUIT_REPLAY_MS;
         this.completionSummary = {
           ...this.progress.markComplete(level, {
             ...stats, moves: snapshot.moves, points: breakdown.total, stars,
             mode: this.mode, parTimeMs: breakdown.parTimeMs, hintTiers: [...this.hintTiers], lastWaypointsClean: this.lastWaypointsClean(snapshot),
-            memoryMode: this.mode === "challenge" ? (level.memoryMode || (level.hidden ? "hidden" : null)) : null,
-            previewSeconds: this.mode === "challenge" && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined,
+            memoryMode: this.mode === "challenge" && !fruit ? (level.memoryMode || (level.hidden ? "hidden" : null)) : null,
+            previewSeconds: this.mode === "challenge" && !fruit && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined,
             flashCombo: this.mode === "challenge" ? snapshot.maxFlashCombo || snapshot.flashCombo || 0 : undefined,
+            fruitPerfect: fruit ? Boolean(stars === 3 && stats.errors === 0 && stats.undos === 0 && stats.elapsedMs <= (level.perfectMs || 0)) : undefined,
           }),
-          breakdown, stars, labels: completionLabels(level, stats), stats,
+          breakdown, stars, labels: fruit ? fruitCompletionLabels(level, stats) : completionLabels(level, stats), stats,
         };
         const rewardsAfter = this.progress.challengeProgress?.() || [];
         this.completionSummary.rewardUnlocks = rewardsAfter.filter((item, index) => item.complete && !rewardsBefore[index]?.complete).map((item) => ({ skinId: item.skinId, label: item.label, icon: item.icon }));
+        if (fruit && level.id === "challenge-fruit-5") {
+          this.completionSummary.rewardUnlocks = [
+            ...(this.completionSummary.rewardUnlocks || []),
+            { skinId: "harvest-realm", label: "丰收秘境背景" },
+            ...(stars >= 3 ? [{ skinId: "rainbow-fruit", label: "彩虹水果路径" }] : []),
+          ];
+        }
+        if (fruit && level.index === 1) this.completionSummary.fruitLesson = "到达水果 10 还不代表立即完成，必须走完剩余格子。";
         this.completionSummary.nextGoals = this.nearestBadgeGoals();
         if (this.completionSummary.achievementEvents?.badges?.length) this.vibrate("short");
         if (stars === 3) { this.progress.rewardHints?.(PERFECT_CLEAR_REWARD); this.completionSummary.hintReward = PERFECT_CLEAR_REWARD; }
@@ -347,26 +399,62 @@ class ForestTrailMiniGame {
     this.clock = null;
     this.clockResult = null;
     this.challengeSelectVisible = false;
-    const level = this.levelProvider.challenge(levelId);
+    const base = this.levelProvider.challenge(levelId);
+    const level = base.playStyle === "fruit-cover" ? dealFruitIcons(base, `${levelId}:${Date.now()}`) : base;
     this.gridSize = level.gridSize;
     this.difficulty = level.difficulty;
-    // 记忆关：进入前给出预览倒计时；非记忆关直接开始。
-    this.challengePreviewUntil = level.hidden ? Date.now() + (level.previewMs || 0) : 0;
-    this.challengeRevealUntil = 0;
+    this.fruitFailedVisible = false;
+    this.fruitReplayUntil = 0;
+    this.fruitHideUntil = 0;
+    this.fruitConnectEndsAt = 0;
+    this.wasFailed = false;
+    this.fruitTutorialVisible = false;
     if (this.challengeRevealTimer) { clearTimeout(this.challengeRevealTimer); this.challengeRevealTimer = null; }
+    if (level.playStyle === "fruit-cover" && !this.progress.fruitTutorialSeen?.()) {
+      this.challengePreviewUntil = 0;
+      this.fruitTutorialVisible = true;
+    } else {
+      this.challengePreviewUntil = level.hidden ? Date.now() + (level.previewMs || 0) : 0;
+    }
+    this.challengeRevealUntil = 0;
     this.sound.tap();
     this.start(level);
   }
 
+  beginFruitPreview() {
+    this.fruitTutorialVisible = false;
+    this.progress.markFruitTutorialSeen?.();
+    this.challengePreviewUntil = Date.now() + (this.current?.previewMs || FRUIT_PREVIEW_MS);
+    this.fruitHideUntil = 0;
+    this.fruitConnectEndsAt = 0;
+    this.sound.tap();
+    return this.render();
+  }
+
+  closeFruitFail() {
+    this.fruitFailedVisible = false;
+    this.sound.tap();
+    return this.openChallengeSelect();
+  }
+
+  retryFruitLevel() {
+    if (!this.current?.id) return this.closeFruitFail();
+    return this.startChallenge(this.current.id);
+  }
+
   // 预览阶段：记忆关开局的观察倒计时，期间图案全部可见且不接受点选。
   challengePreviewActive() {
-    return this.mode === "challenge" && this.current?.hidden === true && Date.now() < this.challengePreviewUntil;
+    if (this.mode !== "challenge") return false;
+    if (this.fruitTutorialVisible) return true;
+    if (this.current?.hidden === true && Date.now() < this.challengePreviewUntil) return true;
+    if (this.isFruitCover() && this.fruitHideUntil && Date.now() < this.fruitHideUntil) return true;
+    return false;
   }
 
   // 记忆关显示状态：预览/纠错显形为“显形”；其后按 memoryMode 淡影 / 全藏 / 闪现。
   challengeMemoryView(snapshot) {
     const level = this.current;
-    if (this.mode !== "challenge" || !level?.hidden) return null;
+    if (this.mode !== "challenge" || !level?.hidden || this.isFruitCover()) return null;
     const now = Date.now();
     const previewRemainingMs = Math.max(0, this.challengePreviewUntil - now);
     const revealing = now < this.challengeRevealUntil;
@@ -385,6 +473,49 @@ class ForestTrailMiniGame {
       currentIcon: completed ? null : target?.icon || null,
       currentName: completed ? null : target?.name || null,
       showName: level.showTargetName === true,
+    };
+  }
+
+  fruitMemoryView(snapshot) {
+    if (!this.isFruitCover()) return null;
+    const now = Date.now();
+    const previewRemainingMs = Math.max(0, this.challengePreviewUntil - now);
+    const hideRemainingMs = this.fruitHideUntil ? Math.max(0, this.fruitHideUntil - now) : 0;
+    const hiding = this.fruitHideUntil > 0 && hideRemainingMs > 0;
+    const previewing = this.fruitTutorialVisible ? false : previewRemainingMs > 0;
+    const elapsedPreview = this.challengePreviewUntil ? Math.min(FRUIT_PREVIEW_MS, FRUIT_PREVIEW_MS - previewRemainingMs) : 0;
+    let phase = "play";
+    if (this.fruitTutorialVisible) phase = "tutorial";
+    else if (previewing && elapsedPreview < 2000) phase = "full";
+    else if (previewing && elapsedPreview < 7000) phase = "pulse";
+    else if (previewing && elapsedPreview < 9000) phase = "countdown";
+    else if (previewing) phase = "flash";
+    else if (hiding) phase = "fade";
+    const replayMsLeft = Math.max(0, (this.fruitReplayUntil || 0) - now);
+    const ended = snapshot.status === "completed" || snapshot.status === "failed";
+    const showReplay = ended && (this.current.index >= 3 || snapshot.status === "failed" || this.current.id === "challenge-fruit-1");
+    const connectRemainingMs = this.fruitConnectEndsAt
+      ? Math.max(0, this.fruitConnectEndsAt - now)
+      : (previewing || hiding || this.fruitTutorialVisible ? this.current.connectMs || 0 : 0);
+    return {
+      active: true,
+      previewing,
+      hiding,
+      phase,
+      previewRemainingMs,
+      hideProgress: hiding ? Math.min(1, (FRUIT_HIDE_MS - hideRemainingMs) / FRUIT_HIDE_MS) : (previewing || this.fruitTutorialVisible ? 0 : 1),
+      connectRemainingMs,
+      covered: snapshot.covered || snapshot.path.length || 0,
+      totalCells: snapshot.totalCells || (this.current.rows * this.current.cols),
+      fruit10Reached: Boolean(snapshot.fruit10Reached),
+      replay: showReplay,
+      replayMsLeft,
+      showSolution: snapshot.status === "failed" && replayMsLeft > 0,
+      tutorial: this.fruitTutorialVisible,
+      undoLimit: this.current.undoLimit || 0,
+      undosLeft: Math.max(0, (this.current.undoLimit || 0) - this.undoCount),
+      errors: snapshot.errors || 0,
+      failReason: snapshot.failReason || null,
     };
   }
 
@@ -424,6 +555,31 @@ class ForestTrailMiniGame {
     return this.mode === "clock" && this.clock ? Math.max(0, this.clock.endAt - Date.now()) : 0;
   }
 
+  fruitConnectRemainingMs() {
+    if (!this.isFruitCover()) return 0;
+    if (!this.fruitConnectEndsAt) return this.current?.connectMs || 0;
+    return Math.max(0, this.fruitConnectEndsAt - Date.now());
+  }
+
+  displayTime(snapshot = this.engine.getSnapshot()) {
+    if (this.mode === "clock") return formatTime(this.clockRemainingMs());
+    if (this.isFruitCover() && snapshot.status !== "completed") return formatTime(this.fruitConnectRemainingMs());
+    return formatTime((this.completedAt || Date.now()) - this.startedAt);
+  }
+
+  livePoints(snapshot = this.engine.getSnapshot()) {
+    if (this.isFruitCover()) {
+      return fruitScoreBreakdown(this.current, {
+        covered: snapshot.covered || snapshot.path.length || 0,
+        errors: snapshot.errors || 0,
+        undos: this.undoCount,
+        elapsedMs: this.fruitConnectEndsAt ? (this.current.connectMs || 0) - this.fruitConnectRemainingMs() : 0,
+        failed: snapshot.status === "failed",
+      }).total;
+    }
+    return liveScore(this.current, { ...this.completionStats(snapshot), winStreak: 0 }, snapshot.path.length);
+  }
+
   view(snapshot = this.engine.getSnapshot()) {
     const tier = CLOCK_TIERS[this.clock?.tierId] || this.clockResult?.tier;
     return {
@@ -435,6 +591,9 @@ class ForestTrailMiniGame {
       challengeTitle: this.mode === "challenge" ? `${this.challengeThemeLabel(this.current?.theme)} · ${this.current?.title || ""}` : null,
       challengeMemory: this.challengeMemoryView(snapshot),
       challengeRhythm: this.challengeRhythmView(snapshot),
+      fruitMemory: this.fruitMemoryView(snapshot),
+      fruitTutorialVisible: this.fruitTutorialVisible,
+      fruitFailedVisible: this.fruitFailedVisible,
       infoVisible: this.infoVisible,
       themePickerVisible: this.themePickerVisible,
       friendBoardVisible: Boolean(this.friendBoardVisible),
@@ -463,7 +622,7 @@ class ForestTrailMiniGame {
       difficultyLabel: tier?.label || LABELS[this.difficulty],
       sound: this.progress.soundEnabled(),
       skill: this.progress.skillProfile?.(),
-      points: snapshot.status === "completed" && this.completionSummary?.breakdown ? this.completionSummary.breakdown.total : liveScore(this.current, { ...this.completionStats(snapshot), winStreak: 0 }, snapshot.path.length),
+      points: snapshot.status === "completed" && this.completionSummary?.breakdown ? this.completionSummary.breakdown.total : this.livePoints(snapshot),
       status: {
         currentWaypoint: Math.min(snapshot.totalWaypoints || 0, Math.max(0, (snapshot.nextWaypoint || 1) - 1)),
         totalWaypoints: snapshot.totalWaypoints || 0,
@@ -471,10 +630,12 @@ class ForestTrailMiniGame {
         combo: snapshot.combo || 0,
         hintsRemaining: this.progress.hintsRemaining?.() ?? 0,
         bestMs: this.progress.getCompletionSummary(this.current).best?.elapsedMs || null,
+        covered: snapshot.covered || snapshot.path.length || 0,
+        totalCells: snapshot.totalCells || (this.current?.rows || 0) * (this.current?.cols || 0),
       },
       feedback: this.feedback || null,
       hintCells: snapshot.hintCells || [],
-      time: this.mode === "clock" ? formatTime(this.clockRemainingMs()) : formatTime((this.completedAt || Date.now()) - this.startedAt),
+      time: this.displayTime(snapshot),
       completion: this.completionSummary || this.progress.getCompletionSummary(this.current),
       completionVisible: this.isCompletionModalVisible(snapshot),
       rankings: this.leaderboard.status(),
@@ -482,7 +643,7 @@ class ForestTrailMiniGame {
   }
 
   isCompletionModalVisible(snapshot = this.engine.getSnapshot()) {
-    return snapshot.status === "completed" && !this.completionDismissed && COMPLETION_MODAL_MODES.includes(this.mode);
+    return snapshot.status === "completed" && !this.completionDismissed && COMPLETION_MODAL_MODES.includes(this.mode) && !this.fruitFailedVisible;
   }
 
   render(snapshot = this.engine.getSnapshot()) { this.renderer.render(snapshot, this.view(snapshot)); }
@@ -507,7 +668,7 @@ class ForestTrailMiniGame {
         this.flash({ kind: "error", cell });
         this.vibrate("short");
         // 记忆关：点错后短暂显形 0.5 秒帮助纠正记忆，然后重新隐藏。
-        if (this.mode === "challenge" && this.current?.hidden) {
+        if (this.mode === "challenge" && this.current?.hidden && !this.isFruitCover()) {
           this.challengeRevealUntil = Date.now() + CHALLENGE_REVEAL_MS;
           if (this.challengeRevealTimer) clearTimeout(this.challengeRevealTimer);
           this.challengeRevealTimer = setTimeout(() => { this.challengeRevealTimer = null; this.render(); }, CHALLENGE_REVEAL_MS + 20);
@@ -519,9 +680,11 @@ class ForestTrailMiniGame {
     const snapshot = this.engine.getSnapshot();
     if (this.engine.numberAt(cell) === expectedWaypoint) {
       this.sound.coin();
-      const label = snapshot.combo >= COMBO_TOAST_MIN ? comboLabel(snapshot.combo) : null;
-      this.flash({ kind: "waypoint", cell, text: label || `${expectedWaypoint} / ${snapshot.totalWaypoints}` });
-    } else if (snapshot.combo >= COMBO_TOAST_MIN && snapshot.combo % COMBO_TOAST_MIN === 0) {
+      if (!this.isFruitCover()) {
+        const label = snapshot.combo >= COMBO_TOAST_MIN ? comboLabel(snapshot.combo) : null;
+        this.flash({ kind: "waypoint", cell, text: label || `${expectedWaypoint} / ${snapshot.totalWaypoints}` });
+      }
+    } else if (!this.isFruitCover() && snapshot.combo >= COMBO_TOAST_MIN && snapshot.combo % COMBO_TOAST_MIN === 0) {
       this.flash({ kind: "combo", cell, text: comboLabel(snapshot.combo) });
     }
     return true;
@@ -536,7 +699,7 @@ class ForestTrailMiniGame {
 
   useHint() {
     const snapshot = this.engine.getSnapshot();
-    if (snapshot.status === "completed" || this.mode === "clock" || this.mode === "clock-ended") return false;
+    if (snapshot.status === "completed" || snapshot.status === "failed" || this.mode === "clock" || this.mode === "clock-ended" || this.isFruitCover()) return false;
     if (!this.progress.canUseHint?.()) { this.flash({ kind: "notice", text: "今日提示已用完" }); this.render(); return false; }
     const tier = hintTierFor(this.hintCount);
     const plan = planHint(this.current, snapshot.path, tier);
@@ -593,8 +756,20 @@ class ForestTrailMiniGame {
     this.sound.tap();
   }
 
-  undo() { this.undoCount += 1; this.engine.undo(); this.sound.undo(); }
-  reset() { this.engine.reset(); this.sound.reset(); }
+  undo() {
+    if (this.isFruitCover()) {
+      const limit = this.current.undoLimit || 0;
+      if (limit <= 0 || this.undoCount >= limit) { this.flash({ kind: "notice", text: "本关撤销次数已用完" }); this.render(); return; }
+    }
+    this.undoCount += 1;
+    this.engine.undo();
+    this.sound.undo();
+  }
+  reset() {
+    if (this.isFruitCover()) { this.engine.fail("主动放弃"); this.sound.reset(); return; }
+    this.engine.reset();
+    this.sound.reset();
+  }
 
   handleStart(event) {
     const point = pointFrom(event);
@@ -612,6 +787,15 @@ class ForestTrailMiniGame {
     }
     if (this.infoVisible) {
       if (this.renderer.hit(controls.infoClose, point) || this.renderer.hit(controls.infoDismiss, point)) { this.infoVisible = false; this.sound.tap(); return this.render(); }
+      return;
+    }
+    if (this.fruitTutorialVisible) {
+      if (this.renderer.hit(controls.fruitTutorialDismiss, point) || this.renderer.hit(controls.infoDismiss, point)) return this.beginFruitPreview();
+      return;
+    }
+    if (this.fruitFailedVisible) {
+      if (this.renderer.hit(controls.fruitFailRetry, point)) return this.retryFruitLevel();
+      if (this.renderer.hit(controls.fruitFailClose, point) || this.renderer.hit(controls.close, point)) return this.closeFruitFail();
       return;
     }
     if (this.renderer.hit(controls.info, point)) { this.infoVisible = true; this.sound.tap(); return this.render(); }
@@ -655,7 +839,8 @@ class ForestTrailMiniGame {
       if (this.renderer.hit(controls.clockLeaderboard, point)) return this.openFriendBoard({ clock: true });
       return;
     }
-    const completed = this.engine.getSnapshot().status === "completed";
+    const snapshot = this.engine.getSnapshot();
+    const completed = snapshot.status === "completed" || snapshot.status === "failed";
     if (this.isCompletionModalVisible()) {
       if (this.renderer.hit(controls.close, point)) { this.completionDismissed = true; this.stopCompletionEffects(); return this.render(); }
       if (this.renderer.hit(controls.next, point)) return this.nextAfterCompletion();
@@ -679,7 +864,8 @@ class ForestTrailMiniGame {
 
   handleMove(event) {
     const point = pointFrom(event);
-    if (!point || this.infoVisible || this.themePickerVisible || this.friendBoardVisible || this.badgesVisible || this.engine.getSnapshot().status === "completed" || this.clockSetupVisible || this.challengeSelectVisible || this.mode === "clock-ended" || this.mode === "challenge") return;
+    const snapshot = this.engine.getSnapshot();
+    if (!point || this.infoVisible || this.themePickerVisible || this.friendBoardVisible || this.badgesVisible || this.fruitTutorialVisible || this.fruitFailedVisible || snapshot.status === "completed" || snapshot.status === "failed" || this.clockSetupVisible || this.challengeSelectVisible || this.mode === "clock-ended" || this.isTapChallenge() || this.challengePreviewActive()) return;
     const cell = this.renderer.toCell(point);
     if (!cell) return;
     const key = `${cell.row}:${cell.col}`;
@@ -709,4 +895,4 @@ class ForestTrailMiniGame {
   }
 }
 
-module.exports = { CLOCK_BONUS_MS, CLOCK_DURATION_MS, CLOCK_TIERS, CHALLENGE_FLASH_CYCLE_MS, CHALLENGE_FLASH_ON_MS, COMPLETION_MODAL_MODES, ForestTrailMiniGame, UI_TICK_MS, WEATHER_ACTIVE_MS, WEATHER_IDLE_MS, challengeFlashVisible, formatTime };
+module.exports = { CLOCK_BONUS_MS, CLOCK_DURATION_MS, CLOCK_TIERS, CHALLENGE_FLASH_CYCLE_MS, CHALLENGE_FLASH_ON_MS, COMPLETION_MODAL_MODES, ForestTrailMiniGame, UI_TICK_MS, WEATHER_ACTIVE_MS, WEATHER_IDLE_MS, challengeFlashVisible, formatTime, FRUIT_HIDE_MS, FRUIT_PREVIEW_MS };

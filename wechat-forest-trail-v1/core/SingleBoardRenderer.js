@@ -11,6 +11,7 @@ const { createCompletionEffect, drawFireworks } = require("./effects/CompletionF
 const { createWeatherScene, drawWeatherBackdrop, drawWeatherMist, drawWeatherRain } = require("./effects/AmbientWeather");
 const { BOARD_THEMES, getBoardTheme } = require("./themes/BoardThemes");
 const { TIER_COLORS, TIER_LABELS } = require("./achievements/BadgeCatalog");
+const { FRUIT_TUTORIAL_STEPS } = require("./challenge/FruitParadise");
 
 const FADED_ICON_ALPHA = 0.22;
 
@@ -40,7 +41,7 @@ class SingleBoardRenderer {
     else { c.moveTo(x + r, y); c.lineTo(x + width - r, y); c.quadraticCurveTo(x + width, y, x + width, y + r); c.lineTo(x + width, y + height - r); c.quadraticCurveTo(x + width, y + height, x + width - r, y + height); c.lineTo(x + r, y + height); c.quadraticCurveTo(x, y + height, x, y + height - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); }
     if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.stroke(); }
   }
-  static get MODAL_CONTROL_KEYS() { return ["themeClose", "themeOptions", "infoClose", "infoDismiss", "completion", "close", "next", "leaderboard", "viewBadges", "clockTiers", "clockCancel", "clockRestart", "clockClose", "clockLeaderboard", "friendBoardClose", "badgesClose", "badgeTabs", "badgeTitles", "badgePageNext", "badgePagePrev", "challengeLevels", "challengeClose"]; }
+  static get MODAL_CONTROL_KEYS() { return ["themeClose", "themeOptions", "infoClose", "infoDismiss", "completion", "close", "next", "leaderboard", "viewBadges", "clockTiers", "clockCancel", "clockRestart", "clockClose", "clockLeaderboard", "friendBoardClose", "badgesClose", "badgeTabs", "badgeTitles", "badgePageNext", "badgePagePrev", "challengeLevels", "challengeClose", "fruitTutorialDismiss", "fruitFailRetry", "fruitFailClose"]; }
   clearModalControls() { for (const key of SingleBoardRenderer.MODAL_CONTROL_KEYS) delete this.controls[key]; }
   render(snapshot, view) {
     const c = this.ctx; c.clearRect(0, 0, this.width, this.height);
@@ -50,7 +51,8 @@ class SingleBoardRenderer {
     this.lastRainDrawn = drawWeatherRain(c, this.weatherScene);
     // 弹窗关闭后必须清掉旧热区，否则隐藏按钮仍可被“隔空”点中。
     this.clearModalControls();
-    if (view.friendBoardVisible) this.drawFriendBoard(view); else if (view.badgesVisible) this.drawBadges(view); else if (view.themePickerVisible) this.drawThemePicker(view); else if (view.infoVisible) this.drawInfo(); else if (view.challengeSelectVisible) this.drawChallengeSelect(view); else if (view.completionVisible) this.drawCompletion(snapshot, view); else if (view.clockSetupVisible) this.drawClockSetup(view); else if (view.clockEnded) this.drawClockResult(view);
+    if (view.friendBoardVisible) this.drawFriendBoard(view); else if (view.badgesVisible) this.drawBadges(view); else if (view.themePickerVisible) this.drawThemePicker(view); else if (view.infoVisible) this.drawInfo(); else if (view.fruitTutorialVisible) this.drawFruitTutorial(view); else if (view.fruitFailedVisible) this.drawFruitFail(snapshot, view); else if (view.challengeSelectVisible) this.drawChallengeSelect(view); else if (view.completionVisible) this.drawCompletion(snapshot, view); else if (view.clockSetupVisible) this.drawClockSetup(view); else if (view.clockEnded) this.drawClockResult(view);
+    if (view.fruitMemory?.previewing || view.fruitMemory?.hiding) this.drawFruitMemoryPopup(snapshot, view);
   }
   // 徽章图标：类别决定外形与底色，等级决定外圈；锁定态为灰底轮廓 + 锁。
   drawBadgeIcon(x, y, size, badge) {
@@ -204,10 +206,11 @@ class SingleBoardRenderer {
     c.strokeStyle=palette.wall;c.lineWidth=Math.max(3,box.cell*.08);(level.walls||[]).forEach((wall)=>{const [direction,rowText,colText]=wall.split("_");const row=Number(rowText),col=Number(colText);c.beginPath();if(direction==="H"){const y=box.top+(row+1)*box.cell;c.moveTo(box.left+col*box.cell+box.cell*.14,y);c.lineTo(box.left+(col+1)*box.cell-box.cell*.14,y);}else{const x=box.left+(col+1)*box.cell;c.moveTo(x,box.top+row*box.cell+box.cell*.14);c.lineTo(x,box.top+(row+1)*box.cell-box.cell*.14);}c.stroke();});
     // 关卡挑战障碍格：深灰圆角块，不可点选、不作为目标。
     (level.blockedCells||[]).forEach((cell)=>{const bx=box.left+cell.col*box.cell,by=box.top+cell.row*box.cell;this.rounded(bx+2,by+2,box.cell-4,box.cell-4,6,"#6b7280","#374151");});
-    // 甜酸分类光带：预览/显形时给分类格上色，隐藏记忆时只保留节奏条以免泄露位置。
+    const fruitMem = view.fruitMemory;
+    const hideFruitPlay = fruitMem?.active && !fruitMem.previewing && !fruitMem.hiding && !fruitMem.replay;
     const rhythm = view.challengeRhythm;
     const mem = view.challengeMemory;
-    const hideIcons = mem?.active && mem.hidden;
+    const hideIcons = (mem?.active && mem.hidden) || hideFruitPlay;
     const memoryMode = mem?.mode || "hidden";
     if (rhythm?.active && !hideIcons) {
       rhythm.groups.forEach((group) => {
@@ -217,25 +220,50 @@ class SingleBoardRenderer {
     }
     if (rhythm?.active) this.drawChallengeRhythm(rhythm, box);
     if(snapshot.path.length){const start=snapshot.path[0],end=snapshot.path[snapshot.path.length-1],startX=box.left+(start.col+.5)*box.cell,startY=box.top+(start.row+.5)*box.cell,endX=box.left+(end.col+.5)*box.cell,endY=box.top+(end.row+.5)*box.cell;const gradient=c.createLinearGradient?.(startX,startY,endX||startX+1,endY||startY+1);if(gradient?.addColorStop){gradient.addColorStop(0,palette.pathStart);gradient.addColorStop(.5,palette.pathMiddle);gradient.addColorStop(1,palette.pathEnd);c.strokeStyle=gradient;}else c.strokeStyle=palette.pathFallback;c.lineWidth=Math.max(56/3,box.cell*38/75);c.lineCap="round";c.lineJoin="round";c.beginPath();snapshot.path.forEach((cell,index)=>{const x=box.left+(cell.col+.5)*box.cell,y=box.top+(cell.row+.5)*box.cell;if(index)c.lineTo(x,y);else c.moveTo(x,y)});c.stroke();}
+    if (view.fruitMemory?.showSolution && level.solution?.length) {
+      c.save?.(); c.globalAlpha = .35; c.strokeStyle = "#b94232"; c.lineWidth = Math.max(2, box.cell * .08); c.lineCap = "round"; c.beginPath();
+      level.solution.forEach((cell, index) => { const x = box.left + (cell.col + .5) * box.cell, y = box.top + (cell.row + .5) * box.cell; if (index) c.lineTo(x, y); else c.moveTo(x, y); });
+      c.stroke(); c.globalAlpha = 1; c.restore?.();
+    }
     // 提示高亮：柔和金色圆斑，多格时依次减淡。
     const hintCells = view.hintCells || snapshot.hintCells || [];
     hintCells.forEach((cell, index) => { const x = box.left + (cell.col + .5) * box.cell, y = box.top + (cell.row + .5) * box.cell; c.fillStyle = `rgba(255,214,90,${(.55 - index * .08).toFixed(2)})`; c.beginPath(); c.arc(x, y, box.cell * .36, 0, Math.PI * 2); c.fill(); });
     // 错误反馈：被拒绝的格子红色闪烁边框。
     const feedback = view.feedback;
     if (feedback?.kind === "error" && feedback.cell) { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, .9 - age / 800); c.strokeStyle = `rgba(217,77,63,${alpha.toFixed(2)})`; c.lineWidth = 3; this.rounded(box.left + feedback.cell.col * box.cell + 2, box.top + feedback.cell.row * box.cell + 2, box.cell - 4, box.cell - 4, 6, null, c.strokeStyle); }
-    const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`)), nextNumber = snapshot.nextWaypoint;
-    level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`), isNext = point.number === nextNumber && snapshot.status !== "completed";
+    const passed = new Set(snapshot.path.map((cell) => `${cell.row}-${cell.col}`));
+    const showFruitReplay = Boolean(fruitMem?.replay);
+    const hideProgress = fruitMem?.hideProgress || 0;
+    level.waypoints.forEach((point)=>{const isPassed = passed.has(`${point.cell.row}-${point.cell.col}`);
       // 全藏：未点选不画。淡影：未点选半透明。闪现：仅在闪光窗内画出未点选图案。
-      if (hideIcons && !isPassed) {
+      if (hideFruitPlay && !showFruitReplay) {
+        if (fruitMem?.fruit10Reached && point.number === level.waypoints.length && isPassed) {
+          const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell;
+          c.fillStyle = "rgba(120,120,120,.55)"; c.beginPath(); c.arc(x, y, box.cell * .28, 0, Math.PI * 2); c.fill();
+          c.fillStyle = "#6b7280"; c.font = `700 ${Math.max(11, box.cell / 4)}px sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("锁", x, y);
+        }
+        return;
+      }
+      if (hideIcons && !isPassed && !showFruitReplay) {
         if (memoryMode === "hidden") return;
         if (memoryMode === "flash" && !mem.flashVisible) return;
       }
       const x=box.left+(point.cell.col+.5)*box.cell,y=box.top+(point.cell.row+.5)*box.cell;
-      // 下一个目标数字：淡色底圈；已经过的数字：略淡以示完成。隐藏态不画目标圈以免泄露位置。
-      if (isNext && !hideIcons) { c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.fill(); c.strokeStyle = palette.pathEnd; c.lineWidth = 2; c.beginPath(); c.arc(x, y, box.cell * .3, 0, Math.PI * 2); c.stroke(); }
-      let iconAlpha = isPassed && !isNext ? .72 : 1;
+      // 连线进行中不提示下一个数字（无底圈/高亮/脉冲）；已经过的数字略淡以示完成。
+      let iconAlpha = isPassed ? .72 : 1;
       if (hideIcons && !isPassed && memoryMode === "faded") iconAlpha = FADED_ICON_ALPHA;
-      c.globalAlpha = iconAlpha; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y); c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
+      c.globalAlpha = iconAlpha; c.fillStyle=palette.number; c.font=`700 ${Math.max(16,box.cell/3)}px Microsoft YaHei, sans-serif`; c.textAlign="center"; c.textBaseline="middle"; c.fillText(point.icon || String(point.number),x,y);
+      if (showFruitReplay && point.number) {
+        c.font = `700 ${Math.max(9, box.cell / 5)}px sans-serif`; c.fillStyle = "#b94232"; c.fillText(String(point.number), x + box.cell * .28, y - box.cell * .28);
+      }
+      c.globalAlpha = 1;}); c.textAlign="left"; c.textBaseline="alphabetic";
+    if (feedback?.kind === "error" && feedback.cell) {
+      const fruit = level.waypoints.find((point) => point.cell.row === feedback.cell.row && point.cell.col === feedback.cell.col);
+      if (fruit) {
+        const x = box.left + (fruit.cell.col + .5) * box.cell, y = box.top + (fruit.cell.row + .5) * box.cell;
+        c.globalAlpha = .95; c.fillStyle = "#d94d3f"; c.font = `700 ${Math.max(16, box.cell / 3)}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(fruit.icon || "●", x, y); c.globalAlpha = 1;
+      }
+    }
     // 连击 / 路标反馈文字：飘在被触达格子上方。
     if (feedback?.text && feedback.cell && feedback.kind !== "error") { const age = Math.max(0, Date.now() - (feedback.at || 0)), alpha = Math.max(0, 1 - age / 700), rise = Math.min(18, age / 30); const x = box.left + (feedback.cell.col + .5) * box.cell, y = box.top + feedback.cell.row * box.cell - 6 - rise; c.globalAlpha = alpha; c.fillStyle = feedback.kind === "combo" ? "#FF922B" : "#FFFFFF"; c.strokeStyle = "rgba(0,0,0,.45)"; c.lineWidth = 3; c.font = `700 ${feedback.kind === "combo" ? 16 : 13}px Microsoft YaHei, sans-serif`; c.textAlign = "center"; c.textBaseline = "alphabetic"; c.strokeText?.(feedback.text, x, y); c.fillText(feedback.text, x, y); c.globalAlpha = 1; c.textAlign = "left"; }
     this.drawScoreTime(view);
@@ -246,6 +274,18 @@ class SingleBoardRenderer {
     const status = view.status; if (!status) return;
     const c = this.ctx, box = this.board, y = box.top - 8 - 14;
     // 记忆关：状态条位置改为显示预览倒计时或“当前要找的图案”。
+    const fruit = view.fruitMemory;
+    if (fruit?.active && (fruit.tutorial || fruit.previewing || fruit.hiding)) return;
+    if (fruit?.active) {
+      const remain = Math.max(0, Math.ceil((fruit.connectRemainingMs || 0) / 1000));
+      const text = `覆盖：${fruit.covered} / ${fruit.totalCells}     时间：${remain} 秒`;
+      c.font = "700 13px Microsoft YaHei, sans-serif"; c.textBaseline = "middle"; c.textAlign = "center";
+      const bannerWidth = (c.measureText?.(text)?.width || text.length * 9) + 24;
+      this.rounded(this.width / 2 - bannerWidth / 2, y - 12, bannerWidth, 24, 12, "rgba(20,40,54,.86)");
+      c.fillStyle = "#ffffff"; c.fillText(text, this.width / 2, y);
+      c.textBaseline = "alphabetic"; c.textAlign = "left";
+      return;
+    }
     const memory = view.challengeMemory;
     if (memory?.active) {
       let text;
@@ -287,8 +327,11 @@ class SingleBoardRenderer {
   drawControls(snapshot, view) {
     const c=this.ctx,total=Math.min(this.width-36,360),left=(this.width-total)/2,gap=8,h=this.board.rowHeight,verticalGap=this.board.controlGap,top=this.board.top+this.board.width+this.board.outerBorder+verticalGap,buttonFill="#fff",textColor="#111",border="#3f2a20",selectedBorder="#d94d3f"; c.lineWidth=2;
     const button=(id,label,x,y,width,selected=false)=>{this.controls[id]={x,y,width,height:h};this.rounded(x,y,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.textAlign="center";c.fillText(label,x+width/2,y+22);};
+    const fruit = view.fruitMemory;
+    const undoLabel = fruit?.active ? `↶ 撤回 ${fruit.undosLeft}` : "↶ 撤回";
+    const resetLabel = fruit?.active ? "放弃" : "⌫ 清空";
     const two=(total-gap)/2;
-    button("undo","↶ 撤回",left,top,two); button("reset","⌫ 清空",left+two+gap,top,two);
+    button("undo", undoLabel, left, top, two); button("reset", resetLabel, left+two+gap, top, two);
     const difficultyRow=top+h+verticalGap; this.controls.difficulties=[]; ["简单","中等","困难"].forEach((label,index)=>{const width=(total-gap*2)/3,x=left+index*(width+gap),selected=view.difficulty===["easy","medium","hard"][index];this.controls.difficulties.push({x,y:difficultyRow,width,height:h,id:["easy","medium","hard"][index]});this.rounded(x,difficultyRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.textAlign="center";c.fillText(label,x+width/2,difficultyRow+22);});
     const sizeRow=difficultyRow+h+verticalGap; this.controls.sizes=[]; ["6x6","8x8","10x10","12x12"].forEach((label,index)=>{const width=(total-gap*3)/4,x=left+index*(width+gap),selected=view.gridSize===label;this.controls.sizes.push({x,y:sizeRow,width,height:h,id:label});this.rounded(x,sizeRow,width,h,8,buttonFill,selected?selectedBorder:border);c.fillStyle=textColor;c.font="700 12px Microsoft YaHei, sans-serif";c.fillText(label,x+width/2,sizeRow+22);});
     const modeRow=sizeRow+h+verticalGap; button("daily","每日挑战",left,modeRow,two,view.mode==="daily"); button("challenge","🎯 关卡挑战",left+two+gap,modeRow,two,view.mode==="challenge");
@@ -364,7 +407,7 @@ class SingleBoardRenderer {
     ];
     rules.forEach(([index, text], offset) => { const rowY = y + 140 + offset * 49; c.fillStyle = "#35a853"; c.beginPath(); c.arc(x + 34, rowY - 4, 12, 0, Math.PI * 2); c.fill(); c.fillStyle = "#fff"; c.font = "700 12px sans-serif"; c.fillText(index, x + 34, rowY); c.fillStyle = "#334047"; c.font = "12px Microsoft YaHei, sans-serif"; c.textAlign = "left"; c.fillText(text, x + 56, rowY); c.textAlign = "center"; });
     c.strokeStyle = "#dedbd4"; c.lineWidth = 1; c.beginPath(); c.moveTo(x + 24, y + 280); c.lineTo(x + w - 24, y + 280); c.stroke();
-    c.fillStyle = "#69757a"; c.font = "11px Microsoft YaHei, sans-serif"; c.fillText("无限：自由选规格和难度  ·  每日：同日同题", this.width / 2, y + 306); c.fillText("关卡挑战：主题图案连线  ·  限时：倒计时连续解题", this.width / 2, y + 326);
+    c.fillStyle = "#69757a"; c.font = "11px Microsoft YaHei, sans-serif"; c.fillText("无限：自由选规格和难度  ·  每日：同日同题", this.width / 2, y + 306); c.fillText("水果乐园：10秒记忆盲连全盘  ·  太空：图案点选", this.width / 2, y + 326);
     this.rounded(this.controls.infoDismiss.x, this.controls.infoDismiss.y, this.controls.infoDismiss.width, this.controls.infoDismiss.height, 9, "#35a853", "#176b46"); c.fillStyle = "#fff"; c.font = "700 13px Microsoft YaHei, sans-serif"; c.fillText("知道了", this.width / 2, y + 379); c.textAlign = "left";
   }
   drawCompletion(snapshot, view) {
@@ -388,6 +431,9 @@ class SingleBoardRenderer {
     c.fillStyle = "#25313a"; c.font = "700 22px Microsoft YaHei, sans-serif"; c.fillText(`+${breakdown ? breakdown.total : view.points} 分`, this.width / 2, scoreY);
     if (breakdown) {
       const parts = [`基础 ${breakdown.base}`];
+      if (breakdown.coverBonus) parts.push(`覆盖 +${breakdown.coverBonus}`);
+      if (breakdown.memoryBonus) parts.push(`记忆 +${breakdown.memoryBonus}`);
+      if (breakdown.noUndoBonus) parts.push(`零撤 +${breakdown.noUndoBonus}`);
       if (breakdown.speedBonus) parts.push(`速度 +${breakdown.speedBonus}`);
       if (breakdown.noMistakeBonus) parts.push(`无错 +${breakdown.noMistakeBonus}`);
       if (breakdown.comboBonus) parts.push(`连击 +${breakdown.comboBonus}`);
@@ -410,6 +456,7 @@ class SingleBoardRenderer {
     if (goals.length) { c.fillStyle = "#69757a"; c.font = "10px Microsoft YaHei, sans-serif"; c.fillText(this.truncate(`距离下一徽章：${goals.map((goal) => `${goal.name}还需 ${goal.remaining}`).join(" · ")}`, w - 48, c.font), this.width / 2, infoY); infoY += 16; }
     const rewardUnlocks = summary.rewardUnlocks || [];
     if (rewardUnlocks.length) { c.fillStyle = "#e36a3e"; c.font = "700 11px Microsoft YaHei, sans-serif"; c.fillText(rewardUnlocks.map((item) => `解锁皮肤 · ${item.label}`).join("  ·  "), this.width / 2, infoY); infoY += 16; }
+    if (summary.fruitLesson) { c.fillStyle = "#b94232"; c.font = "700 10px Microsoft YaHei, sans-serif"; c.fillText(summary.fruitLesson, this.width / 2, infoY); infoY += 16; }
     c.fillStyle = "#717a7f"; c.font = "11px sans-serif"; c.fillText(rankings.global.text, this.width / 2, infoY);
     const actionHeight = 34, actionInset = 12, nextY = y + h - actionInset - actionHeight, leaderboardY = nextY - actionHeight - 8, dividerY = leaderboardY - 10, halfW = (w - 44 - 8) / 2;
     c.strokeStyle = "#ddd8d2"; c.lineWidth = 1; c.beginPath(); c.moveTo(x + 24, dividerY); c.lineTo(x + w - 24, dividerY); c.stroke();
@@ -422,6 +469,99 @@ class SingleBoardRenderer {
   }
   toCell(point) { const b=this.board;if(!b||point.x<b.left||point.x>=b.left+b.width||point.y<b.top||point.y>=b.top+b.width)return null;return {row:Math.floor((point.y-b.top)/b.cell),col:Math.floor((point.x-b.left)/b.cell)}; }
   hit(box, point) { return box && point.x>=box.x && point.x<=box.x+box.width && point.y>=box.y && point.y<=box.y+box.height; }
+  drawFruitMiniBoard(level, x, y, size, view) {
+    const c = this.ctx, rows = level.rows, cell = size / rows, fruit = view.fruitMemory || {}, phase = fruit.phase, hide = fruit.hideProgress || 0;
+    const flash = phase === "flash" && Math.floor(Date.now() / 120) % 2 === 0;
+    this.rounded(x - 6, y - 6, size + 12, size + 12, 10, "#fffdf8", flash ? "#e36a3e" : "#d6d0c8");
+    c.strokeStyle = "#ece9e3"; c.lineWidth = 1;
+    for (let index = 0; index <= rows; index += 1) {
+      c.beginPath(); c.moveTo(x, y + index * cell); c.lineTo(x + size, y + index * cell); c.stroke();
+      c.beginPath(); c.moveTo(x + index * cell, y); c.lineTo(x + index * cell, y + size); c.stroke();
+    }
+    const pulse = phase === "pulse" ? 1 + Math.sin(Date.now() / 180) * 0.06 : 1;
+    const numberAlpha = phase === "fade" ? Math.max(0, 1 - hide / 0.4) : 1;
+    const iconAlpha = phase === "fade" ? Math.max(0, 1 - hide) : 1;
+    const iconScale = phase === "fade" ? Math.max(0.2, 1 - hide * 0.8) : pulse;
+    level.waypoints.forEach((point) => {
+      const cx = x + (point.cell.col + .5) * cell, cy = y + (point.cell.row + .5) * cell;
+      c.save?.();
+      c.globalAlpha = iconAlpha;
+      c.font = `700 ${Math.max(10, cell / 2.4 * iconScale)}px Microsoft YaHei, sans-serif`;
+      c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#25313a";
+      c.fillText(point.icon || "●", cx, cy);
+      c.globalAlpha = numberAlpha;
+      c.fillStyle = "#b94232"; c.font = `700 ${Math.max(8, cell / 4)}px sans-serif`;
+      c.fillText(String(point.number), cx + cell * .28, cy - cell * .28);
+      c.restore?.();
+    });
+    c.globalAlpha = 1; c.textAlign = "left"; c.textBaseline = "alphabetic";
+  }
+  drawFruitMemoryPopup(snapshot, view) {
+    const fruit = view.fruitMemory; if (!fruit) return;
+    const c = this.ctx, w = Math.min(this.width - 28, 360), h = 430, x = (this.width - w) / 2, y = Math.max(56, (this.height - h) / 2);
+    const remain = Math.max(0, Math.ceil((fruit.previewRemainingMs || 0) / 1000));
+    const fade = fruit.phase === "fade" ? Math.max(0, 1 - (fruit.hideProgress || 0)) : 1;
+    c.save?.(); c.globalAlpha = fade;
+    c.fillStyle = "rgba(9,54,86,.55)"; c.fillRect(0, 0, this.width, this.height);
+    this.rounded(x, y, w, h, 18, "#fffdf8", "#b94232");
+    c.fillStyle = "#25313a"; c.font = "700 22px Microsoft YaHei, sans-serif"; c.textAlign = "center";
+    c.fillText("水果记忆挑战", this.width / 2, y + 36);
+    c.fillStyle = "#69757a"; c.font = "12px Microsoft YaHei, sans-serif";
+    c.fillText("请记住 1～10 的水果和位置", this.width / 2, y + 58);
+    const timerSize = fruit.phase === "countdown" ? 28 : 16;
+    c.fillStyle = fruit.phase === "countdown" || fruit.phase === "flash" ? "#b94232" : "#25313a";
+    c.font = `700 ${timerSize}px Microsoft YaHei, sans-serif`;
+    c.fillText(`剩余观察时间：${remain}`, this.width / 2, y + 88);
+    const mini = Math.min(w - 48, 240);
+    this.drawFruitMiniBoard(this.level, x + (w - mini) / 2, y + 108, mini, view);
+    c.fillStyle = "#69757a"; c.font = "12px Microsoft YaHei, sans-serif";
+    c.fillText("10 秒后开始盲连", this.width / 2, y + h - 28);
+    c.textAlign = "left"; c.restore?.();
+    void snapshot;
+  }
+  drawFruitTutorial(view) {
+    const c = this.ctx, w = Math.min(this.width - 32, 360), h = 500, x = (this.width - w) / 2, y = Math.max(48, (this.height - h) / 2);
+    c.fillStyle = "rgba(9,54,86,.72)"; c.fillRect(0, 0, this.width, this.height);
+    this.rounded(x, y, w, h, 18, "#fffdf8", "#b94232");
+    c.fillStyle = "#25313a"; c.font = "700 22px Microsoft YaHei, sans-serif"; c.textAlign = "center";
+    c.fillText("水果乐园教学", this.width / 2, y + 40);
+    c.fillStyle = "#69757a"; c.font = "12px Microsoft YaHei, sans-serif";
+    c.fillText("10 秒水果记忆 + 全棋盘路线规划", this.width / 2, y + 62);
+    FRUIT_TUTORIAL_STEPS.forEach((text, index) => {
+      const rowY = y + 92 + index * 40;
+      c.fillStyle = "#35a853"; c.beginPath(); c.arc(x + 28, rowY - 4, 11, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#fff"; c.font = "700 11px sans-serif"; c.fillText(String(index + 1), x + 28, rowY);
+      c.fillStyle = "#334047"; c.font = "11px Microsoft YaHei, sans-serif"; c.textAlign = "left";
+      c.fillText(text, x + 46, rowY); c.textAlign = "center";
+    });
+    this.controls.fruitTutorialDismiss = { x: x + 22, y: y + h - 56, width: w - 44, height: 38 };
+    this.rounded(this.controls.fruitTutorialDismiss.x, this.controls.fruitTutorialDismiss.y, w - 44, 38, 9, "#35a853", "#176b46");
+    c.fillStyle = "#fff"; c.font = "700 13px Microsoft YaHei, sans-serif";
+    c.fillText("开始记忆", this.width / 2, y + h - 31);
+    c.textAlign = "left";
+    void view;
+  }
+  drawFruitFail(snapshot, view) {
+    const fruit = view.fruitMemory || {}, c = this.ctx, w = Math.min(this.width - 40, 340), h = 280, x = (this.width - w) / 2, y = Math.max(92, (this.height - h) / 2);
+    c.fillStyle = "rgba(9,54,86,.55)"; c.fillRect(0, 0, this.width, this.height);
+    this.rounded(x, y, w, h, 18, "#fffdf8", "#b94232");
+    this.controls.fruitFailClose = { x: x + w - 38, y: y + 12, width: 26, height: 26 };
+    this.rounded(this.controls.fruitFailClose.x, this.controls.fruitFailClose.y, 26, 26, 13, "#f2f0ec");
+    c.fillStyle = "#73706a"; c.font = "700 19px sans-serif"; c.textAlign = "center"; c.fillText("×", x + w - 25, y + 31);
+    c.fillStyle = "#25313a"; c.font = "700 22px Microsoft YaHei, sans-serif";
+    c.fillText("本局结束", this.width / 2, y + 58);
+    c.fillStyle = "#b94232"; c.font = "13px Microsoft YaHei, sans-serif";
+    c.fillText(fruit.failReason || snapshot.message || "挑战失败", this.width / 2, y + 86);
+    c.fillStyle = "#69757a"; c.font = "12px Microsoft YaHei, sans-serif";
+    c.fillText(`已覆盖 ${fruit.covered || 0} / ${fruit.totalCells || 36} 格`, this.width / 2, y + 114);
+    c.fillText("复盘路线最多显示 3 秒", this.width / 2, y + 136);
+    this.controls.fruitFailRetry = { x: x + 22, y: y + h - 56, width: w - 44, height: 38 };
+    this.rounded(this.controls.fruitFailRetry.x, this.controls.fruitFailRetry.y, w - 44, 38, 9, "#35a853", "#176b46");
+    c.fillStyle = "#fff"; c.font = "700 13px Microsoft YaHei, sans-serif";
+    c.textAlign = "center";
+    c.fillText("再试一次", this.width / 2, y + h - 31);
+    c.textAlign = "left";
+  }
 }
 
 module.exports = { SingleBoardRenderer, FADED_ICON_ALPHA };
