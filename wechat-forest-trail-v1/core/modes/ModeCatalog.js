@@ -1,4 +1,4 @@
-const MODE_IDS = { DAILY: "daily", UNLIMITED: "unlimited", PROGRESSIVE: "progressive", CLOCK: "clock" };
+const MODE_IDS = { DAILY: "daily", UNLIMITED: "unlimited", CHALLENGE: "challenge", CLOCK: "clock" };
 
 const CLOCK_TIERS = {
   easy: { id: "easy", label: "简单", gridSize: "6x6", gridSizes: ["6x6", "8x8"], difficulty: "easy", bonusMs: 10000 },
@@ -22,25 +22,6 @@ function dailyRequest(date = new Date()) {
     seed: `forest-trail:daily:v2:Asia/Shanghai:${day}`,
     title: `每日挑战 · ${day}`,
     challengeDate: day,
-  };
-}
-
-function progressiveRequest(level = 1) {
-  const current = Math.max(1, Math.floor(level));
-  let gridSize = "4x4", difficulty = "easy";
-  if (current >= 5) gridSize = "6x6";
-  if (current >= 13) { gridSize = "8x8"; difficulty = "medium"; }
-  if (current >= 25) { gridSize = "10x10"; difficulty = "medium"; }
-  if (current >= 41) { gridSize = "10x10"; difficulty = "hard"; }
-  if (current >= 61) { gridSize = "12x12"; difficulty = "hard"; }
-  return {
-    mode: MODE_IDS.PROGRESSIVE,
-    gridSize,
-    difficulty,
-    sourceKind: "progressive",
-    seed: `forest-trail:progressive:v2:${current}:${gridSize}:${difficulty}`,
-    title: `渐进挑战 · Level ${current}`,
-    progressiveLevel: current,
   };
 }
 
@@ -82,4 +63,4 @@ function unlimitedRequest({ gridSize = "6x6", difficulty = "easy", ordinal = 1 }
   };
 }
 
-module.exports = { CLOCK_TIERS, CLOCK_WAVE_SIZE, MODE_IDS, chinaDateKey, clockGridSize, clockRequest, dailyRequest, progressiveRequest, unlimitedRequest };
+module.exports = { CLOCK_TIERS, CLOCK_WAVE_SIZE, MODE_IDS, chinaDateKey, clockGridSize, clockRequest, dailyRequest, unlimitedRequest };

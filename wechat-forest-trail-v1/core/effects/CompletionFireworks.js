@@ -58,6 +58,8 @@ function particleFrame(particle, elapsedMs) {
 
 function drawFireworks(context, effect, now = Date.now()) {
   if (!effect) return false;
+  if (effect.kind === "harvest") return drawHarvest(context, effect, now);
+  if (effect.kind === "nebula") return drawNebula(context, effect, now);
   const elapsedMs = now - effect.startedAt;
   if (elapsedMs < 0 || elapsedMs >= effect.duration) return false;
   let drew = false;
@@ -83,4 +85,101 @@ function drawFireworks(context, effect, now = Date.now()) {
   return drew;
 }
 
-module.exports = { FIREWORK_COLORS, FIREWORK_DURATION_MS, createFireworks, drawFireworks, particleFrame };
+const HARVEST_COLORS = ["#FF6B8A", "#FFD35A", "#45B9A2", "#FF922B", "#F08C8C", "#9B7CFF"];
+const NEBULA_COLORS = ["#9D83FF", "#74C0FC", "#F8F0FF", "#63E6BE", "#DA77F2", "#4C6EF5"];
+
+function createHarvest(width, height, startedAt = Date.now()) {
+  const random = seededRandom(startedAt + width * 11 + height * 23);
+  const particles = [];
+  for (let index = 0; index < 42; index += 1) {
+    particles.push({
+      x: width * (.08 + random() * .84),
+      y: -18 - random() * 90,
+      vx: (random() - .5) * 36,
+      vy: 70 + random() * 90,
+      gravity: 95 + random() * 40,
+      delay: Math.floor(random() * 420),
+      life: 1100 + Math.floor(random() * 500),
+      size: 3.2 + random() * 3.6,
+      color: HARVEST_COLORS[Math.floor(random() * HARVEST_COLORS.length)],
+      spin: (random() - .5) * 4,
+    });
+  }
+  return { kind: "harvest", startedAt, duration: FIREWORK_DURATION_MS, particles };
+}
+
+function createNebula(width, height, startedAt = Date.now()) {
+  const random = seededRandom(startedAt + width * 13 + height * 29);
+  const cx = width / 2, cy = height * .28;
+  const particles = [];
+  for (let index = 0; index < 56; index += 1) {
+    const radius = 18 + random() * 92;
+    const angle = random() * Math.PI * 2;
+    particles.push({
+      cx, cy, radius, angle,
+      speed: .9 + random() * 1.6,
+      delay: Math.floor(random() * 280),
+      life: 1400 + Math.floor(random() * 600),
+      size: 1.4 + random() * 2.4,
+      color: NEBULA_COLORS[Math.floor(random() * NEBULA_COLORS.length)],
+      expand: 18 + random() * 40,
+    });
+  }
+  return { kind: "nebula", startedAt, duration: FIREWORK_DURATION_MS, particles };
+}
+
+function createCompletionEffect(width, height, startedAt = Date.now(), kind = "fireworks") {
+  if (kind === "harvest") return createHarvest(width, height, startedAt);
+  if (kind === "nebula") return createNebula(width, height, startedAt);
+  return { kind: "fireworks", ...createFireworks(width, height, startedAt) };
+}
+
+function drawHarvest(context, effect, now = Date.now()) {
+  const elapsedMs = now - effect.startedAt;
+  if (elapsedMs < 0 || elapsedMs >= effect.duration) return false;
+  let drew = false;
+  const originalAlpha = context.globalAlpha;
+  effect.particles.forEach((particle) => {
+    const frame = particleFrame(particle, elapsedMs);
+    if (!frame) return;
+    drew = true;
+    context.globalAlpha = frame.alpha;
+    context.fillStyle = particle.color;
+    context.beginPath();
+    context.arc(frame.x, frame.y, frame.size, 0, Math.PI * 2);
+    context.fill();
+    context.globalAlpha = frame.alpha * .35;
+    context.beginPath();
+    context.arc(frame.x - frame.size * .4, frame.y + frame.size * .2, frame.size * .55, 0, Math.PI * 2);
+    context.fill();
+  });
+  context.globalAlpha = originalAlpha === undefined ? 1 : originalAlpha;
+  return drew;
+}
+
+function drawNebula(context, effect, now = Date.now()) {
+  const elapsedMs = now - effect.startedAt;
+  if (elapsedMs < 0 || elapsedMs >= effect.duration) return false;
+  let drew = false;
+  const originalAlpha = context.globalAlpha;
+  effect.particles.forEach((particle) => {
+    const activeMs = elapsedMs - particle.delay;
+    if (activeMs < 0 || activeMs >= particle.life) return;
+    const progress = activeMs / particle.life;
+    const t = activeMs / 1000;
+    const radius = particle.radius + particle.expand * progress;
+    const angle = particle.angle + particle.speed * t;
+    const x = particle.cx + Math.cos(angle) * radius;
+    const y = particle.cy + Math.sin(angle) * radius * .62;
+    drew = true;
+    context.globalAlpha = Math.max(0, 1 - progress) ** 1.35;
+    context.fillStyle = particle.color;
+    context.beginPath();
+    context.arc(x, y, particle.size * (1 - progress * .25), 0, Math.PI * 2);
+    context.fill();
+  });
+  context.globalAlpha = originalAlpha === undefined ? 1 : originalAlpha;
+  return drew;
+}
+
+module.exports = { FIREWORK_COLORS, FIREWORK_DURATION_MS, HARVEST_COLORS, NEBULA_COLORS, createFireworks, createHarvest, createNebula, createCompletionEffect, drawFireworks, particleFrame };

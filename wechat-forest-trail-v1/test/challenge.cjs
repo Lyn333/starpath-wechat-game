@@ -1,0 +1,375 @@
+const assert = require("assert");
+const { CHALLENGE_LEVELS, THEMES, FRUIT_CATEGORIES, getChallengeLevel, challengeThemeList, challengeRewardProgress, challengeRhythmView, validateChallengeLevel } = require("../core/challenge/ChallengeLevels");
+const { ChallengeEngine, cellsOnLine, lineCrossesBlocked } = require("../core/challenge/ChallengeEngine");
+const { SingleBoardRenderer, FADED_ICON_ALPHA } = require("../core/SingleBoardRenderer");
+const { ForestTrailMiniGame, CHALLENGE_FLASH_CYCLE_MS, CHALLENGE_FLASH_ON_MS } = require("../core/GameFlow");
+const { ProgressStore } = require("../core/ProgressStore");
+const { MemoryStorageAdapter } = require("../core/platform/StorageAdapter");
+
+// 1. 关卡数据完整性：两套主题各 5 关；编号、坐标、障碍全部合法且互不重叠。
+{
+  assert.strictEqual(CHALLENGE_LEVELS.length, 10, "应有 10 个关卡");
+  assert.strictEqual(THEMES.length, 2);
+  const themes = challengeThemeList();
+  for (const theme of themes) assert.strictEqual(theme.levels.length, 5, `${theme.id} 应有 5 关`);
+  for (const level of CHALLENGE_LEVELS) {
+    assert.doesNotThrow(() => validateChallengeLevel(level), `${level.id} 数据应合法`);
+    assert.strictEqual(level.requireFullCoverage, false, "关卡挑战不要求覆盖全盘");
+    assert.ok(level.targetMs > level.threeStarMs, `${level.id} 目标时间应大于三星时间`);
+    level.waypoints.forEach((waypoint, index) => { assert.strictEqual(waypoint.number, index + 1); assert.ok(waypoint.icon, `${level.id} 图案 ${waypoint.name} 缺少图标`); });
+  }
+  // 文档关键数值抽查。
+  assert.strictEqual(getChallengeLevel("challenge-fruit-1").waypoints.length, 8);
+  assert.strictEqual(getChallengeLevel("challenge-fruit-5").waypoints.length, 18);
+  assert.strictEqual(getChallengeLevel("challenge-space-4").blockedCells.length, 8);
+  assert.strictEqual(getChallengeLevel("challenge-space-5").blockedCells.length, 10);
+  assert.strictEqual(getChallengeLevel("challenge-fruit-1").waypoints[0].icon, "🍎");
+  assert.strictEqual(getChallengeLevel("challenge-space-1").waypoints[0].icon, "🚀");
+  assert.strictEqual(getChallengeLevel("challenge-fruit-3").memoryMode, "faded");
+  assert.strictEqual(getChallengeLevel("challenge-fruit-4").memoryMode, "hidden");
+  assert.strictEqual(getChallengeLevel("challenge-fruit-5").memoryMode, "flash");
+  assert.strictEqual(getChallengeLevel("challenge-space-3").memoryMode, "faded");
+  assert.strictEqual(getChallengeLevel("challenge-space-4").memoryMode, "hidden");
+  assert.strictEqual(getChallengeLevel("challenge-space-5").memoryMode, "flash");
+  assert.strictEqual(getChallengeLevel("challenge-fruit-1").memoryMode, null);
+  const fruit4 = getChallengeLevel("challenge-fruit-4");
+  assert.strictEqual(fruit4.categories.length, 4);
+  assert.deepStrictEqual(fruit4.categories.map((item) => item.label), FRUIT_CATEGORIES.map((item) => item.label));
+  const rhythm = challengeRhythmView(fruit4, { nextWaypoint: 1 });
+  assert.strictEqual(rhythm.groups.length, 4);
+  assert.strictEqual(rhythm.current.label, "甜");
+  assert.strictEqual(rhythm.groups[0].current, true);
+  const afterSweet = challengeRhythmView(fruit4, { nextWaypoint: 4 });
+  assert.strictEqual(afterSweet.current.label, "酸");
+  assert.strictEqual(afterSweet.groups[0].found, 3);
+  const rewards = challengeRewardProgress({ "challenge-fruit-1": true, "challenge-fruit-2": true }, { "challenge-fruit-1": 3, "challenge-fruit-2": 2 });
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").cleared, 2);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").stars, 5);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").complete, false);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").skinId, "fruit-grove");
+  // 校验函数应能抓出错误数据。
+  assert.throws(() => validateChallengeLevel({ id: "bad", rows: 6, cols: 6, blockedCells: [], waypoints: [{ number: 1, cell: { row: 0, col: 0 }, name: "a" }, { number: 3, cell: { row: 1, col: 1 }, name: "b" }] }));
+  assert.throws(() => validateChallengeLevel({
+    id: "cross", rows: 6, cols: 6, hidden: false, memoryMode: null,
+    blockedCells: [{ row: 0, col: 1 }],
+    waypoints: [{ number: 1, cell: { row: 0, col: 0 }, name: "a" }, { number: 2, cell: { row: 0, col: 3 }, name: "b" }],
+  }));
+}
+
+// 2. 关卡挑战引擎：按顺序点选前进；错序 / 重复点选记错误；点空格忽略；完成、撤回、重置。
+{
+  const level = getChallengeLevel("challenge-fruit-1");
+  const engine = new ChallengeEngine(level);
+  const w = level.waypoints;
+  assert.strictEqual(engine.getSnapshot().status, "idle");
+  assert.strictEqual(engine.getSnapshot().totalWaypoints, 8);
+  assert.strictEqual(engine.nextWaypoint, 1);
+
+  // 点空格：忽略、不计错误。
+  assert.strictEqual(engine.tryMove({ row: 5, col: 5 }), false);
+  assert.strictEqual(engine.errors, 0);
+
+  // 错序：点第 2 个图案，记错误、不前进。
+  assert.strictEqual(engine.tryMove(w[1].cell), false);
+  assert.strictEqual(engine.errors, 1);
+  assert.strictEqual(engine.nextWaypoint, 1);
+
+  // 正确点第 1 个。
+  assert.strictEqual(engine.tryMove(w[0].cell), true);
+  assert.strictEqual(engine.getSnapshot().status, "active");
+  assert.strictEqual(engine.nextWaypoint, 2);
+  assert.strictEqual(engine.getSnapshot().path.length, 1);
+
+  // 重复点已连接的图案：记错误。
+  const errorsBefore = engine.errors;
+  assert.strictEqual(engine.tryMove(w[0].cell), false);
+  assert.strictEqual(engine.errors, errorsBefore + 1);
+
+  // 撤回一步后重新点选。
+  engine.undo();
+  assert.strictEqual(engine.nextWaypoint, 1);
+  assert.strictEqual(engine.getSnapshot().status, "idle");
+
+  // 依次点完全部图案 -> 完成。
+  for (const waypoint of w) assert.strictEqual(engine.tryMove(waypoint.cell), true);
+  assert.strictEqual(engine.getSnapshot().status, "completed");
+  assert.strictEqual(engine.nextWaypoint, 9);
+  // 完成后不再接受点选。
+  assert.strictEqual(engine.tryMove(w[0].cell), false);
+
+  engine.reset();
+  assert.strictEqual(engine.getSnapshot().status, "idle");
+  assert.strictEqual(engine.errors, 0);
+  assert.strictEqual(engine.getSnapshot().path.length, 0);
+}
+
+// 3. 障碍格：点障碍格忽略；设计连线可解；直线穿过障碍记错误。
+{
+  const keys = (a, b) => cellsOnLine(a, b, a, b + 3).map((cell) => `${cell.row}-${cell.col}`);
+  assert.deepStrictEqual(keys(0, 0), ["0-0", "0-1", "0-2", "0-3"]);
+  assert.ok(cellsOnLine(0, 0, 2, 2).some((cell) => cell.row === 1 && cell.col === 1));
+  assert.strictEqual(lineCrossesBlocked({ row: 0, col: 0 }, { row: 0, col: 3 }, new Set(["0-1"])), true);
+  assert.strictEqual(lineCrossesBlocked({ row: 0, col: 0 }, { row: 0, col: 3 }, new Set(["2-2"])), false);
+
+  const level = getChallengeLevel("challenge-space-4");
+  const engine = new ChallengeEngine(level);
+  const blocked = level.blockedCells[0];
+  assert.strictEqual(engine.numberAt(blocked), null, "障碍格不应是图案");
+  assert.strictEqual(engine.tryMove(blocked), false);
+  assert.strictEqual(engine.errors, 0);
+
+  const play = new ChallengeEngine(level);
+  for (const waypoint of level.waypoints) assert.strictEqual(play.tryMove(waypoint.cell), true, `space-4 设计路径应能连接 ${waypoint.name}`);
+  assert.strictEqual(play.getSnapshot().status, "completed");
+  assert.strictEqual(play.errors, 0);
+
+  const space5 = getChallengeLevel("challenge-space-5");
+  const play5 = new ChallengeEngine(space5);
+  for (const waypoint of space5.waypoints) assert.strictEqual(play5.tryMove(waypoint.cell), true, `space-5 设计路径应能连接 ${waypoint.name}`);
+  assert.strictEqual(play5.getSnapshot().status, "completed");
+
+  const blockedLine = {
+    id: "line-test", rows: 6, cols: 6, memoryMode: null,
+    waypoints: [
+      { number: 1, cell: { row: 0, col: 0 }, icon: "A", name: "a" },
+      { number: 2, cell: { row: 0, col: 3 }, icon: "B", name: "b" },
+    ],
+    blockedCells: [{ row: 0, col: 1 }],
+  };
+  const crossing = new ChallengeEngine(blockedLine);
+  assert.strictEqual(crossing.tryMove({ row: 0, col: 0 }), true);
+  assert.strictEqual(crossing.tryMove({ row: 0, col: 3 }), false);
+  assert.strictEqual(crossing.errors, 1);
+  assert.strictEqual(crossing.nextWaypoint, 2);
+  assert.ok(crossing.message.includes("障碍"));
+  assert.strictEqual(crossing.tryMove({ row: 2, col: 2 }), false);
+  assert.strictEqual(crossing.errors, 1, "空格仍应忽略");
+}
+
+// 4. 渲染器：关卡选择弹窗登记 10 个关卡热区与关闭按钮；棋盘按图标绘制、障碍格不报错。
+{
+  global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
+  const texts = [];
+  const target = { setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, fill() {}, arc() {}, quadraticCurveTo() {}, rect() {}, strokeText() {}, createLinearGradient() { return { addColorStop() {} }; }, measureText(v) { return { width: String(v).length * 7 }; }, fillText(v) { texts.push(String(v)); } };
+  const ctx = new Proxy(target, { get: (o, p) => (p in o ? o[p] : () => {}), set: (o, p, v) => { o[p] = v; return true; } });
+  const renderer = new SingleBoardRenderer({ getContext: () => ctx });
+
+  // 关卡选择弹窗。
+  const challengeThemes = challengeThemeList().map((theme) => ({ id: theme.id, label: theme.label, icon: theme.icon, levels: theme.levels.map((level) => ({ id: level.id, index: level.index, title: level.title, gridSize: level.gridSize, stars: 0, bestMs: null })) }));
+  renderer.drawChallengeSelect({ challengeThemes });
+  assert.strictEqual(renderer.controls.challengeLevels.length, 10, "应登记 10 个关卡热区");
+  assert.ok(renderer.controls.challengeClose, "应有关闭按钮热区");
+  assert.strictEqual(renderer.controls.challengeLevels[0].id, "challenge-fruit-1");
+  for (const label of ["关卡挑战", "🍎 水果乐园", "🚀 太空旅行", "第1关 · 果园起步", "第5关 · 穿越星云"]) assert.ok(texts.includes(label), `弹窗缺少文案：${label}`);
+  assert.ok(texts.some((value) => value.includes("集齐主题关卡解锁奖励皮肤")), "弹窗应说明皮肤解锁");
+
+  // 棋盘按图标绘制（含障碍格的关卡不应报错）。
+  const level = getChallengeLevel("challenge-space-4");
+  renderer.setLevel(level);
+  texts.length = 0;
+  const snapshot = { status: "idle", path: [], nextWaypoint: 1, moves: 0, errors: 0, combo: 0, maxCombo: 0, hintCells: [], totalWaypoints: level.waypoints.length };
+  const view = { boardTheme: undefined, time: "0:00", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null } };
+  assert.doesNotThrow(() => renderer.drawBoard(snapshot, view));
+  assert.ok(texts.includes("🚀"), "棋盘应绘制火箭图标");
+  delete global.wx;
+}
+
+// 5. 记忆关：预览倒计时 -> 隐藏 -> 当前目标提示 -> 点错短暂显形；非记忆关无此流程。
+{
+  const makeGame = (rendererMock) => new ForestTrailMiniGame({}, [], {
+    progress: new ProgressStore({ storage: new MemoryStorageAdapter() }),
+    renderer: rendererMock,
+    sound: new Proxy({}, { get: () => () => {} }),
+    leaderboard: { initialize: () => Promise.resolve(true), status: () => ({ friend: { text: "" }, global: { text: "" } }), submitCompletion: () => Promise.resolve(true) },
+  });
+  const rendererMock = { setLevel() {}, render() {}, resize() {}, hit() { return false; }, toCell() { return null; }, startCompletionFireworks() { this.completionFireworks = {}; }, clearCompletionFireworks() { this.completionFireworks = null; }, drawCompletionFireworks() { return false; }, controls: {}, friendBoardCanvasSize() { return {}; } };
+
+  const game = makeGame(rendererMock);
+  game.startChallenge("challenge-fruit-3");
+  // 预览阶段：图案可见、不接受点选。
+  assert.strictEqual(game.challengePreviewActive(), true, "记忆关开局应处于预览阶段");
+  let mem = game.view().challengeMemory;
+  assert.ok(mem && mem.active && mem.previewRemainingMs > 0 && mem.hidden === false, "预览阶段图案应可见");
+  rendererMock.toCell = () => game.current.waypoints[0].cell;
+  game.handleStart({ touches: [{ clientX: 1, clientY: 1 }] });
+  assert.strictEqual(game.engine.nextWaypoint, 1, "预览阶段点选应被忽略");
+  rendererMock.toCell = () => null;
+
+  // 预览结束 -> 隐藏，显示当前目标（水果记忆秀显示名称）。
+  game.challengePreviewUntil = Date.now() - 1;
+  assert.strictEqual(game.challengePreviewActive(), false);
+  mem = game.view().challengeMemory;
+  assert.strictEqual(mem.hidden, true, "预览结束后应进入记忆态");
+  assert.strictEqual(mem.mode, "faded", "水果记忆秀应为淡影模式");
+  assert.strictEqual(mem.faded, true);
+  assert.strictEqual(mem.currentIcon, game.current.waypoints[0].icon);
+  assert.strictEqual(mem.showName, true, "水果记忆秀应显示名称");
+  assert.strictEqual(mem.currentName, game.current.waypoints[0].name);
+
+  // 正确点选第一个后目标推进；点错触发短暂显形。
+  game.moveTo(game.current.waypoints[0].cell);
+  assert.strictEqual(game.view().challengeMemory.currentIcon, game.current.waypoints[1].icon);
+  game.moveTo(game.current.waypoints[2].cell); // 未来目标格 -> 记错误
+  assert.ok(game.challengeRevealUntil > Date.now(), "点错后应触发短暂显形");
+  assert.strictEqual(game.view().challengeMemory.hidden, false, "显形期间图案应可见");
+  game.destroy();
+
+  // 丰收终章：闪现模式，只显示轮廓，不显示名称。
+  const g2 = makeGame(rendererMock);
+  g2.startChallenge("challenge-fruit-5");
+  g2.challengePreviewUntil = Date.now() - 1;
+  assert.strictEqual(g2.view().challengeMemory.showName, false, "丰收终章应只显示轮廓");
+  assert.strictEqual(g2.view().challengeMemory.mode, "flash");
+  g2.challengePreviewUntil = Date.now() - 10;
+  assert.strictEqual(g2.view().challengeMemory.flashVisible, true, "闪光窗口内应可见");
+  g2.challengePreviewUntil = Date.now() - (CHALLENGE_FLASH_ON_MS + 20);
+  assert.strictEqual(g2.view().challengeMemory.flashVisible, false, "闪光窗口外应隐藏");
+  assert.ok(CHALLENGE_FLASH_CYCLE_MS > CHALLENGE_FLASH_ON_MS);
+  g2.destroy();
+
+  const hiddenLevel = makeGame(rendererMock);
+  hiddenLevel.startChallenge("challenge-fruit-4");
+  hiddenLevel.challengePreviewUntil = Date.now() - 1;
+  assert.strictEqual(hiddenLevel.view().challengeMemory.mode, "hidden");
+  hiddenLevel.destroy();
+
+  // 非记忆关（水果关1）无预览、无记忆视图。
+  const g3 = makeGame(rendererMock);
+  g3.startChallenge("challenge-fruit-1");
+  assert.strictEqual(g3.challengePreviewActive(), false, "非记忆关不应有预览");
+  assert.strictEqual(g3.view().challengeMemory, null, "非记忆关不应有记忆视图");
+  g3.destroy();
+}
+
+// 6. 渲染器记忆态：淡影画出未点选图案；全藏不画；闪现仅在闪光窗内画出。
+{
+  global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
+  const texts = [];
+  const alphas = [];
+  const target = { setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, fill() {}, arc() {}, quadraticCurveTo() {}, rect() {}, strokeText() {}, createLinearGradient() { return { addColorStop() {} }; }, measureText(v) { return { width: String(v).length * 7 }; }, fillText(v) { texts.push(String(v)); alphas.push(this.globalAlpha == null ? 1 : this.globalAlpha); } };
+  const ctx = new Proxy(target, { get: (o, p) => (p in o ? o[p] : () => {}), set: (o, p, v) => { o[p] = v; return true; } });
+  const renderer = new SingleBoardRenderer({ getContext: () => ctx });
+  const level = getChallengeLevel("challenge-fruit-3"); // 苹果🍎(第1) 香蕉🍌(第2)
+  renderer.setLevel(level);
+  const snapshot = { status: "active", path: [level.waypoints[0].cell], nextWaypoint: 2, moves: 0, errors: 0, combo: 0, maxCombo: 0, hintCells: [], totalWaypoints: level.waypoints.length };
+  const fadedView = { boardTheme: undefined, time: "0:10", points: 0, clockActive: false, status: { currentWaypoint: 1, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: true, mode: "faded", faded: true, flashVisible: false, previewRemainingMs: 0, revealing: false, currentIcon: "🍌", currentName: "香蕉", showName: true } };
+  renderer.drawBoard(snapshot, fadedView);
+  assert.ok(texts.includes("🍎"), "已点选图案应显示");
+  const bananaAt = texts.indexOf("🍌");
+  assert.ok(bananaAt >= 0, "淡影时应绘制未点选图案");
+  assert.strictEqual(alphas[bananaAt], FADED_ICON_ALPHA, "淡影图案应为半透明");
+  assert.ok(texts.some((t) => t.includes("找出") && t.includes("香蕉")), "状态条应显示当前要找的图案");
+
+  // 预览阶段：全部图案可见、状态条显示倒计时。
+  texts.length = 0;
+  const previewView = { ...fadedView, challengeMemory: { active: true, hidden: false, mode: "faded", faded: false, flashVisible: false, previewRemainingMs: 3000, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: true } };
+  renderer.drawBoard({ ...snapshot, path: [], nextWaypoint: 1 }, previewView);
+  assert.ok(texts.includes("🍌"), "预览阶段应显示全部图案");
+  assert.ok(texts.some((t) => t.includes("记住图案位置")), "预览阶段状态条应显示倒计时");
+
+  // 闪现：窗口关闭不画未点选，窗口打开画出。
+  const flashLevel = getChallengeLevel("challenge-fruit-5");
+  renderer.setLevel(flashLevel);
+  const flashSnap = { status: "idle", path: [], nextWaypoint: 1, moves: 0, errors: 0, combo: 0, maxCombo: 0, hintCells: [], totalWaypoints: flashLevel.waypoints.length };
+  texts.length = 0;
+  renderer.drawBoard(flashSnap, { boardTheme: undefined, time: "0:10", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: flashLevel.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: true, mode: "flash", faded: false, flashVisible: false, previewRemainingMs: 0, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false } });
+  assert.ok(!texts.includes("🍎"), "闪现关闭时不应泄露未点选图案");
+  texts.length = 0;
+  renderer.drawBoard(flashSnap, { boardTheme: undefined, time: "0:10", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: flashLevel.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: true, mode: "flash", faded: false, flashVisible: true, previewRemainingMs: 0, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false } });
+  assert.ok(texts.includes("🍎"), "闪现打开时应绘制未点选图案");
+  delete global.wx;
+}
+
+// 7. 水果第 4 关分类节奏光带：预览时绘制分类标签；隐藏时状态条带上当前分类且不绘制未点选图案。
+{
+  global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
+  const texts = [];
+  const fills = [];
+  const target = { setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, fill() { fills.push(this.fillStyle); }, arc() {}, quadraticCurveTo() {}, rect() {}, strokeText() {}, createLinearGradient() { return { addColorStop() {} }; }, measureText(v) { return { width: String(v).length * 7 }; }, fillText(v) { texts.push(String(v)); } };
+  const ctx = new Proxy(target, { get: (o, p) => (p in o ? o[p] : () => {}), set: (o, p, v) => { o[p] = v; return true; } });
+  const renderer = new SingleBoardRenderer({ getContext: () => ctx });
+  const level = getChallengeLevel("challenge-fruit-4");
+  renderer.setLevel(level);
+  const snapshot = { status: "idle", path: [], nextWaypoint: 1, moves: 0, errors: 0, combo: 0, maxCombo: 0, hintCells: [], totalWaypoints: level.waypoints.length };
+  const rhythm = challengeRhythmView(level, snapshot);
+  renderer.drawBoard(snapshot, { boardTheme: undefined, time: "0:00", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: false, previewRemainingMs: 4000, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false }, challengeRhythm: rhythm });
+  for (const label of ["甜", "酸", "果香", "热带"]) assert.ok(texts.includes(label), `节奏光带缺少分类：${label}`);
+  assert.ok(texts.includes("🍎"), "预览时应绘制当前分类图案");
+  texts.length = 0;
+  renderer.drawBoard(snapshot, { boardTheme: undefined, time: "0:10", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: true, previewRemainingMs: 0, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false }, challengeRhythm: rhythm });
+  assert.ok(!texts.includes("🍎"), "隐藏时不应泄露未点选图案位置");
+  assert.ok(texts.some((t) => t.includes("找出") && t.includes("甜") && t.includes("🍎")), "隐藏态状态条应提示当前分类");
+  delete global.wx;
+}
+
+// 8. GameFlow：水果关通关播丰收特效，太空关播星云特效；记忆关计入 hidden 成就；集齐主题解锁皮肤。
+{
+  const makeGame = (rendererMock, progress) => new ForestTrailMiniGame({}, [], {
+    progress: progress || new ProgressStore({ storage: new MemoryStorageAdapter() }),
+    renderer: rendererMock,
+    sound: new Proxy({}, { get: () => () => {} }),
+    leaderboard: { initialize: () => Promise.resolve(true), status: () => ({ friend: { text: "" }, global: { text: "" } }), submitCompletion: () => Promise.resolve(true) },
+  });
+  const rendererMock = { setLevel() {}, render() {}, resize() {}, hit() { return false; }, toCell() { return null; }, startCompletionFireworks(startedAt, kind) { this.kind = kind; this.completionFireworks = { startedAt, kind }; }, clearCompletionFireworks() { this.completionFireworks = null; }, drawCompletionFireworks() { return false; }, controls: {}, friendBoardCanvasSize() { return {}; } };
+
+  const fruit = makeGame(rendererMock);
+  fruit.startChallenge("challenge-fruit-1");
+  fruit.startedAt = Date.now() - 1000;
+  for (const waypoint of fruit.current.waypoints) fruit.moveTo(waypoint.cell);
+  assert.strictEqual(rendererMock.kind, "harvest", "水果关通关应播放丰收特效");
+  fruit.destroy();
+
+  const space = makeGame(rendererMock);
+  space.startChallenge("challenge-space-1");
+  space.startedAt = Date.now() - 1000;
+  for (const waypoint of space.current.waypoints) space.moveTo(waypoint.cell);
+  assert.strictEqual(rendererMock.kind, "nebula", "太空关通关应播放星云特效");
+  space.destroy();
+
+  const memory = makeGame(rendererMock);
+  memory.startChallenge("challenge-fruit-3");
+  memory.challengePreviewUntil = Date.now() - 1;
+  memory.startedAt = Date.now() - 2000;
+  for (const waypoint of memory.current.waypoints) memory.moveTo(waypoint.cell);
+  assert.ok(memory.progress.achievementState().stats.memoryClears >= 1, "记忆关应计入记忆成就");
+  assert.strictEqual(memory.progress.achievementState().stats.memoryClearsByMode.faded, 1, "水果记忆秀应计入淡影");
+  assert.strictEqual(memory.progress.achievementState().unlocked["memory-start"]?.tier, "bronze");
+  memory.destroy();
+
+  const hiddenClear = makeGame(rendererMock);
+  hiddenClear.startChallenge("challenge-fruit-4");
+  hiddenClear.challengePreviewUntil = Date.now() - 1;
+  hiddenClear.startedAt = Date.now() - 2000;
+  for (const waypoint of hiddenClear.current.waypoints) hiddenClear.moveTo(waypoint.cell);
+  assert.strictEqual(hiddenClear.progress.achievementState().stats.memoryClearsByMode.hidden, 1);
+  assert.strictEqual(hiddenClear.progress.achievementState().stats.hiddenZeroErrorClears, 1);
+  hiddenClear.destroy();
+
+  const flash = makeGame(rendererMock);
+  flash.startChallenge("challenge-fruit-5");
+  flash.challengePreviewUntil = Date.now() - 1;
+  flash.startedAt = Date.now() - 2000;
+  for (const waypoint of flash.current.waypoints) flash.moveTo(waypoint.cell);
+  assert.strictEqual(flash.progress.achievementState().stats.memoryClearsByMode.flash, 1);
+  assert.ok(flash.engine.getSnapshot().maxFlashCombo >= 10);
+  assert.strictEqual(flash.progress.achievementState().stats.flashCombo10Clears, 1);
+  assert.strictEqual(flash.progress.achievementState().unlocked["flash-catcher"]?.tier, "bronze");
+  flash.destroy();
+
+  const storage = new MemoryStorageAdapter();
+  const progress = new ProgressStore({ storage });
+  assert.strictEqual(progress.isBoardThemeUnlocked("fruit-grove"), false);
+  assert.strictEqual(progress.setBoardTheme("fruit-grove"), false);
+  for (const id of ["challenge-fruit-1", "challenge-fruit-2", "challenge-fruit-3", "challenge-fruit-4", "challenge-fruit-5"]) {
+    const level = getChallengeLevel(id);
+    progress.markComplete(level, { moves: level.waypoints.length, elapsedMs: 1000, errors: 0, undos: 0, hints: 0, stars: 3, mode: "challenge" });
+  }
+  assert.strictEqual(progress.challengeProgress().find((item) => item.id === "fruit").complete, true);
+  assert.strictEqual(progress.isBoardThemeUnlocked("fruit-grove"), true);
+  assert.strictEqual(progress.setBoardTheme("fruit-grove"), true);
+  assert.strictEqual(progress.boardTheme(), "fruit-grove");
+  assert.strictEqual(progress.achievementState().unlocked["fruit-harvest"]?.tier, "silver");
+  assert.strictEqual(progress.isBoardThemeUnlocked("nebula-night"), false);
+}
+
+console.log("PASS challenge");

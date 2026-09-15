@@ -1,10 +1,11 @@
 const { WeChatStorageAdapter } = require("./platform/StorageAdapter");
 const { normalizeSkill, updateSkill } = require("./player/SkillProfile");
 const { chinaDateKey } = require("./modes/ModeCatalog");
-const { DEFAULT_BOARD_THEME_ID, isBoardThemeId } = require("./themes/BoardThemes");
+const { DEFAULT_BOARD_THEME_ID, BOARD_THEMES, isBoardThemeId } = require("./themes/BoardThemes");
 const { normalizeHintWallet, consumeHint, rewardHints, canUseHint } = require("./scoring/HintPolicy");
 const { applyCompletion, breakRuns, diffUnlocks, evaluateAll, normalizeStats: normalizeAchievementStats, unlockedTitles } = require("./achievements/AchievementTracker");
 const { TITLES } = require("./achievements/BadgeCatalog");
+const { challengeRewardProgress } = require("./challenge/ChallengeLevels");
 
 const STORAGE_KEY = "forest-trail-wechat-v1-progress-v1";
 const STATE_VERSION = 8;
@@ -31,7 +32,6 @@ function emptyState() {
     clock: { best: {}, ordinals: {} },
     soundEnabled: true,
     boardTheme: DEFAULT_BOARD_THEME_ID,
-    progressiveLevel: 1,
     streak: { count: 0, lastDate: null },
     skill: normalizeSkill(),
     hints: { remaining: 0, lastRefillDate: null },
@@ -57,11 +57,6 @@ function normalizeAchievements(value) {
     equippedTitle: titles.includes(input.equippedTitle) ? input.equippedTitle : null,
     seenEvents: Math.max(0, Math.floor(Number(input.seenEvents) || 0)),
   };
-}
-
-function normalizeProgressiveLevel(value) {
-  const level = Math.floor(Number(value));
-  return Number.isFinite(level) && level >= 1 ? level : 1;
 }
 
 function normalizeStars(value) {
@@ -94,7 +89,6 @@ function migrateState(value) {
     continuations: { ...base.continuations, ...(value.continuations || {}) },
     sequences: { ...base.sequences, ...(value.sequences || {}) },
     activeSessions: trimActiveSessions(value.activeSessions),
-    progressiveLevel: normalizeProgressiveLevel(value.progressiveLevel),
     clock: {
       best: { ...base.clock.best, ...(value.clock?.best || {}) },
       ordinals: { ...base.clock.ordinals, ...(value.clock?.ordinals || {}) },
@@ -173,6 +167,9 @@ class ProgressStore {
   // 把本局折算成成就上下文，更新累计统计并返回新解锁/升级事件。
   recordAchievementCompletion(level, score, result = {}) {
     const previous = this.state.achievements;
+    const rewards = challengeRewardProgress(this.state.completed, this.state.stars);
+    const fruit = rewards.find((item) => item.id === "fruit") || { cleared: 0, stars: 0 };
+    const space = rewards.find((item) => item.id === "space") || { cleared: 0, stars: 0 };
     const ctx = {
       gridSize: level.gridSize || `${level.rows}x${level.cols}`,
       difficulty: level.difficulty,
@@ -184,7 +181,12 @@ class ProgressStore {
       firstClear: !previous.stats.completed || !this.state.completed[level.id] || result.firstClear === true,
       winStreak: this.state.winStreak,
       dateKey: chinaDateKey(new Date(score.completedAt)),
-      memoryMode: result.memoryMode || null, previewSeconds: result.previewSeconds, flashCombo: result.flashCombo,
+      memoryMode: result.memoryMode || (result.mode === "challenge" && level.hidden ? "hidden" : null),
+      previewSeconds: result.previewSeconds ?? (result.mode === "challenge" && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined),
+      flashCombo: result.flashCombo,
+      fruitThemeClears: fruit.cleared, spaceThemeClears: space.cleared,
+      fruitThemeStars: fruit.stars, spaceThemeStars: space.stars,
+      challengeClears: fruit.cleared + space.cleared, challengeStars: fruit.stars + space.stars,
     };
     const stats = applyCompletion(previous.stats, ctx);
     const evaluations = evaluateAll(stats, ctx, previous.unlocked);
@@ -284,8 +286,6 @@ class ProgressStore {
     return this.save();
   }
   activeSessionCount() { return Object.keys(this.state.activeSessions).length; }
-  progressiveLevel() { return normalizeProgressiveLevel(this.state.progressiveLevel); }
-  setProgressiveLevel(level) { this.state.progressiveLevel = normalizeProgressiveLevel(level); return this.save(); }
   loadActiveSession(levelId) { return this.state.activeSessions[levelId]?.engineState || null; }
   loadLatestSession({ mode, gridSize, difficulty } = {}) {
     return Object.values(this.state.activeSessions).filter((session) => (!mode || session.mode === mode) && (!gridSize || session.level?.gridSize === gridSize) && (!difficulty || session.level?.difficulty === difficulty)).sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
@@ -293,8 +293,18 @@ class ProgressStore {
   clearActiveSession(levelId) { delete this.state.activeSessions[levelId]; return this.save(); }
   setSoundEnabled(enabled) { this.state.soundEnabled = Boolean(enabled); this.save(); }
   soundEnabled() { return this.state.soundEnabled !== false; }
-  setBoardTheme(themeId) { if (!isBoardThemeId(themeId)) return false; this.state.boardTheme = themeId; return this.save(); }
-  boardTheme() { return isBoardThemeId(this.state.boardTheme) ? this.state.boardTheme : DEFAULT_BOARD_THEME_ID; }
+  setBoardTheme(themeId) { if (!isBoardThemeId(themeId) || !this.isBoardThemeUnlocked(themeId)) return false; this.state.boardTheme = themeId; return this.save(); }
+  isBoardThemeUnlocked(themeId) {
+    const theme = BOARD_THEMES.find((item) => item.id === themeId);
+    if (!theme?.unlock?.challengeTheme) return true;
+    return this.challengeProgress().find((item) => item.id === theme.unlock.challengeTheme)?.complete === true;
+  }
+  challengeProgress() { return challengeRewardProgress(this.state.completed, this.state.stars); }
+  boardThemeUnlocks() { return Object.fromEntries(BOARD_THEMES.map((theme) => [theme.id, this.isBoardThemeUnlocked(theme.id)])); }
+  boardTheme() {
+    const id = isBoardThemeId(this.state.boardTheme) ? this.state.boardTheme : DEFAULT_BOARD_THEME_ID;
+    return this.isBoardThemeUnlocked(id) ? id : DEFAULT_BOARD_THEME_ID;
+  }
 }
 
 module.exports = { ACTIVE_SESSION_LIMIT, ProgressStore, RECENT_PUZZLE_LIMIT, STATE_VERSION, STORAGE_KEY, emptyState, migrateState };

@@ -1,5 +1,5 @@
 /**
- * 徽章图鉴：首发 24 枚（文档第十一节），只开放铜牌 / 银牌两级，数据结构预留金 / 钻。
+ * 徽章图鉴：首发 27 枚（原 24 + 关卡挑战 3），只开放铜牌 / 银牌两级，数据结构预留金 / 钻。
  *
  * 每枚徽章：
  *   id / name / category / shape / hint（未解锁时的方向提示）
@@ -8,7 +8,7 @@
  *   一次性条件写在 progress 里返回 0/1，即“发生过一次”
  *
  * ctx 是刚结束的这一局的上下文（见 AchievementTracker.buildContext）；stats 是长期累计统计。
- * 记忆类徽章依赖 ctx.memoryMode，当前版本没有记忆玩法时永远不会解锁，图鉴中显示为锁定。
+ * 记忆类徽章依赖 ctx.memoryMode。关卡挑战第 3 关为淡影、第 4 关为全藏、第 5 关为闪现。
  */
 
 const TIERS = ["bronze", "silver", "gold", "diamond"];
@@ -23,6 +23,7 @@ const CATEGORIES = {
   memory: { label: "记忆", shape: "eye", color: "#27B6C8" },
   streak: { label: "连胜", shape: "flame", color: "#F06B68" },
   daily: { label: "每日", shape: "calendar", color: "#9B7CFF" },
+  challenge: { label: "关卡", shape: "hexagon", color: "#E36A3E" },
   ultimate: { label: "终极", shape: "starburst", color: "#9D83FF" },
 };
 
@@ -61,7 +62,7 @@ const BADGES = [
     tiers: ladder(1, 5, (n) => `最后 5 个数字全部一次完成，达成 ${n} 局`), progress: (stats) => stats.calmFinishClears },
   { id: "speed-master", name: "速度大师", category: "speed", icon: "»", hint: "6×6、8×8、10×10 都达到目标时间",
     tiers: single("在 6×6、8×8、10×10 三种尺寸均在目标时间内完成"), progress: (stats) => once(["6x6", "8x8", "10x10"].every((size) => (stats.underParBySize[size] || 0) >= 1)) },
-  // —— 记忆挑战（依赖 memoryMode，当前版本锁定）——
+  // —— 记忆挑战（关卡挑战第 3 关 faded、第 4 关 hidden、第 5 关 flash）——
   { id: "faint-walker", name: "淡影行者", category: "memory", icon: "◌", hint: "半透明数字模式完成 5 局",
     tiers: ladder(5, 15, (n) => `半透明数字模式完成 ${n} 局`), progress: (stats) => stats.memoryClearsByMode.faded || 0 },
   { id: "photographic", name: "过目不忘", category: "memory", icon: "◉7", hint: "完全隐藏模式零错误完成",
@@ -85,6 +86,12 @@ const BADGES = [
     tiers: ladder(1, 7, (n) => `完成 ${n} 次每日挑战（每天最多计 1 次）`), progress: (stats) => stats.dailyClears },
   { id: "daily-three-star", name: "每日三星", category: "daily", icon: "📅★", hint: "每日挑战获得三星 7 次",
     tiers: ladder(7, 20, (n) => `每日挑战获得三星 ${n} 次`), progress: (stats) => stats.dailyThreeStars },
+  { id: "fruit-harvest", name: "果园丰收", category: "challenge", icon: "🍎", hint: "完成水果乐园全部 5 关",
+    tiers: ladder(5, 15, (n) => n === 5 ? "完成水果乐园全部 5 关" : "水果乐园累计 15 星"), progress: (stats) => (stats.fruitThemeStars || 0) >= 15 ? 15 : (stats.fruitThemeClears || 0) },
+  { id: "space-voyage", name: "星云航程", category: "challenge", icon: "🚀", hint: "完成太空旅行全部 5 关",
+    tiers: ladder(5, 15, (n) => n === 5 ? "完成太空旅行全部 5 关" : "太空旅行累计 15 星"), progress: (stats) => (stats.spaceThemeStars || 0) >= 15 ? 15 : (stats.spaceThemeClears || 0) },
+  { id: "challenge-collector", name: "主题收藏家", category: "challenge", icon: "🎯", hint: "完成两套主题共 10 关",
+    tiers: ladder(10, 30, (n) => n === 10 ? "完成全部 10 个主题关卡" : "主题关卡累计 30 星"), progress: (stats) => (stats.challengeStars || 0) >= 30 ? 30 : (stats.challengeClears || 0) },
   { id: "ultimate-memory", name: "终极记忆者", category: "ultimate", icon: "✦", hint: "获得全部基础记忆徽章",
     tiers: single("获得全部基础记忆徽章"), progress: (stats, ctx, unlocked) => once(MEMORY_BASE_BADGES.every((id) => unlocked?.[id])) },
 ];
@@ -97,6 +104,7 @@ const TITLES = [
   { id: "lightning-memory", name: "闪电记忆", condition: "获得速度类银牌", unlocked: (unlocked) => BADGES.some((badge) => badge.category === "speed" && unlocked[badge.id]?.tier === "silver") },
   { id: "blind-expert", name: "盲连专家", condition: "获得“盲连专家”徽章", unlocked: (unlocked) => Boolean(unlocked["blind-expert"]) },
   { id: "daily-challenger", name: "每日挑战者", condition: "今日签到达到银牌", unlocked: (unlocked) => unlocked["daily-checkin"]?.tier === "silver" },
+  { id: "theme-master", name: "主题大师", condition: "完成两套主题关卡", unlocked: (unlocked) => Boolean(unlocked["fruit-harvest"] && unlocked["space-voyage"]) },
   { id: "focus-master", name: "专注大师", condition: "一笔不错与完美棋盘均达银牌", unlocked: (unlocked) => unlocked["flawless-stroke"]?.tier === "silver" && unlocked["perfect-board"]?.tier === "silver" },
   { id: "ultimate-linker", name: "终极连线者", condition: "解锁全部首发徽章", unlocked: (unlocked) => BADGES.every((badge) => unlocked[badge.id]) },
 ];

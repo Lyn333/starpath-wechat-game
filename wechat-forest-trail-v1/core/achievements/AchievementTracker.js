@@ -46,6 +46,12 @@ function emptyStats() {
     blind8x8Clears: 0,
     memoryRun: 0,
     bestMemoryRun: 0,
+    fruitThemeClears: 0,
+    spaceThemeClears: 0,
+    fruitThemeStars: 0,
+    spaceThemeStars: 0,
+    challengeClears: 0,
+    challengeStars: 0,
   };
 }
 
@@ -75,7 +81,8 @@ function isConsecutiveDay(previousKey, currentKey) {
  *   gridSize, difficulty, mode ("standard"|"daily"|"progressive"|"clock"), elapsedMs, parTimeMs,
  *   errors, undos, hints, hintTiers (本局用过的提示等级数组), maxCombo, stars,
  *   lastWaypointsClean (最后 N 个数字是否全部一次找到), firstClear (该题目首次完成), dateKey,
- *   memoryMode (null | "faded" | "hidden" | "flash" | "segmented"), previewSeconds, flashCombo
+ *   memoryMode (null | "faded" | "hidden" | "flash" | "segmented"), previewSeconds, flashCombo,
+ *   fruitThemeClears, spaceThemeClears, fruitThemeStars, spaceThemeStars, challengeClears, challengeStars
  */
 function applyCompletion(previousStats, ctx) {
   const stats = normalizeStats(previousStats);
@@ -126,6 +133,14 @@ function applyCompletion(previousStats, ctx) {
     stats.memoryRun = 0;
   }
   stats.bestMemoryRun = Math.max(stats.bestMemoryRun, stats.memoryRun);
+  if (ctx.mode === "challenge") {
+    stats.fruitThemeClears = Math.max(stats.fruitThemeClears, nonNegativeInt(ctx.fruitThemeClears));
+    stats.spaceThemeClears = Math.max(stats.spaceThemeClears, nonNegativeInt(ctx.spaceThemeClears));
+    stats.fruitThemeStars = Math.max(stats.fruitThemeStars, nonNegativeInt(ctx.fruitThemeStars));
+    stats.spaceThemeStars = Math.max(stats.spaceThemeStars, nonNegativeInt(ctx.spaceThemeStars));
+    stats.challengeClears = Math.max(stats.challengeClears, nonNegativeInt(ctx.challengeClears));
+    stats.challengeStars = Math.max(stats.challengeStars, nonNegativeInt(ctx.challengeStars));
+  }
   return stats;
 }
 
