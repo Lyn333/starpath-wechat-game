@@ -4,7 +4,7 @@ const { CLOCK_TIERS } = require("../core/modes/ModeCatalog");
 const { BOARD_THEMES, DEFAULT_BOARD_THEME_ID } = require("../core/themes/BoardThemes");
 
 assert.strictEqual(DEFAULT_BOARD_THEME_ID, "tai-bai");
-assert.strictEqual(BOARD_THEMES.length, 12);
+assert.strictEqual(BOARD_THEMES.length, 14);
 for (const theme of BOARD_THEMES) assert.deepStrictEqual([theme.palette.pathStart, theme.palette.pathMiddle, theme.palette.pathEnd], ["#0E9F57", "#2FE278", "#087F46"]);
 
 global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
@@ -61,23 +61,24 @@ for (const label of ["+10 秒", "+7 秒", "+5 秒", "+3 秒"]) assert.ok(text.in
 renderer.render(snapshot, { ...view, boardTheme: "zhu-sha" });
 assert.deepStrictEqual(gradients.slice(-3), [[0, "#0E9F57"], [0.5, "#2FE278"], [1, "#087F46"]]);
 renderer.render(snapshot, { ...view, themePickerVisible: true, boardTheme: "zhu-sha" });
-assert.strictEqual(renderer.controls.themeOptions.length, 12);
+assert.strictEqual(renderer.controls.themeOptions.length, 14);
 assert.ok(renderer.controls.themeClose);
 assert.strictEqual(renderer.controls.themeOptions[0].id, "tai-bai");
 assert.ok(renderer.controls.themeOptions[0].x < renderer.controls.themeOptions[1].x);
 assert.strictEqual(renderer.controls.themeOptions[0].y, renderer.controls.themeOptions[1].y);
-for (const label of ["棋盘颜色", "肽白为默认 · 诗意中国色 · 统一绿色连线", "肽白", "硃砂", "硃磦", "藤黄", "三青", "三绿", "胭脂", "曙红", "赭石", "墨黑", "花青", "酞青蓝"]) assert.ok(text.includes(label), `缺少主题文案：${label}`);
+for (const label of ["棋盘颜色", "肽白为默认 · 诗意中国色 · 主题关解锁奖励皮肤", "肽白", "硃砂", "硃磦", "藤黄", "三青", "三绿", "胭脂", "曙红", "赭石", "墨黑", "花青", "酞青蓝", "果园暮光", "星云夜航"]) assert.ok(text.includes(label), `缺少主题文案：${label}`);
 assert.ok(!text.some((value) => value.includes("色值取自")), "选色弹窗不应再显示色卡来源说明");
 // 去掉底部说明后，弹窗应紧贴最后一行选项收口，不留大块空白。
 const lastThemeOption = renderer.controls.themeOptions.at(-1);
 const themeModalTop = renderer.controls.themeClose.y - 12, themeModalBottom = themeModalTop + renderer.lastThemeModalHeight;
 assert.strictEqual(themeModalBottom - (lastThemeOption.y + lastThemeOption.height), 14);
-for (const [id, fill] of [["tai-bai", "#F8F8F8"], ["zhu-sha", "#C62918"], ["zhu-biao", "#CF420A"], ["teng-huang", "#FFB61E"], ["san-qing", "#20C6E0"], ["san-lv", "#45B9A2"], ["yan-zhi", "#AB1D22"], ["shu-hong", "#C72A17"], ["zhe-shi", "#612405"], ["mo-hei", "#090B0C"], ["hua-qing", "#191A48"], ["tai-qing-lan", "#012772"]]) {
+for (const [id, fill] of [["tai-bai", "#F8F8F8"], ["zhu-sha", "#C62918"], ["zhu-biao", "#CF420A"], ["teng-huang", "#FFB61E"], ["san-qing", "#20C6E0"], ["san-lv", "#45B9A2"], ["yan-zhi", "#AB1D22"], ["shu-hong", "#C72A17"], ["zhe-shi", "#612405"], ["mo-hei", "#090B0C"], ["hua-qing", "#191A48"], ["tai-qing-lan", "#012772"], ["fruit-grove", "#FFF1D6"], ["nebula-night", "#16122C"]]) {
   const theme = BOARD_THEMES.find((item) => item.id === id);
   assert.ok(theme, `缺少主题：${id}`);
   assert.strictEqual(theme.palette.boardFill, fill, `${id} 棋盘底色应与色卡一致`);
 }
 renderer.render(snapshot, { ...view, infoVisible: true });
 assert.ok(renderer.controls.infoClose && renderer.controls.infoDismiss);
-for (const label of ["玩法说明", "按 1、2、3、4… 的顺序经过所有数字路标。", "只能上下左右移动；不能斜走，也不能穿过墙体。", "每格只走一次，覆盖全盘并抵达末号通关。", "知道了"]) assert.ok(text.includes(label));
+for (const label of ["玩法说明", "按 1、2、3、4… 的顺序经过所有数字路标。", "只能上下左右移动；不能斜走，也不能穿过墙体。", "每格只走一次，覆盖全盘并抵达末号通关。", "知道了", "关卡挑战：主题图案连线  ·  限时：倒计时连续解题"]) assert.ok(text.includes(label));
+assert.ok(!text.includes("渐进：关卡自动升级"), "玩法说明不应再提已移除的渐进模式");
 console.log("PASS renderer-modes");

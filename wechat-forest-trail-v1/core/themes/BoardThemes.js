@@ -9,8 +9,8 @@ const ORIGINAL_GREEN_PATH = {
   pathFallback: "#20C96B",
 };
 
-function theme(id, label, subtitle, boardFill, boardBorder, grid, wall, number) {
-  return { id, label, subtitle, swatch: boardFill, palette: { boardFill, boardBorder, grid, wall, number, ...ORIGINAL_GREEN_PATH } };
+function theme(id, label, subtitle, boardFill, boardBorder, grid, wall, number, extra = {}) {
+  return { id, label, subtitle, swatch: boardFill, palette: { boardFill, boardBorder, grid, wall, number, ...ORIGINAL_GREEN_PATH }, unlock: extra.unlock || null };
 }
 
 const BOARD_THEMES = [
@@ -26,6 +26,8 @@ const BOARD_THEMES = [
   theme("mo-hei", "墨黑", "墨具五色", "#090B0C", "#5C6266", "rgba(255,255,255,.18)", "#C9CDD0", "#F2F4F5"),
   theme("hua-qing", "花青", "蓼蓝为蓝", "#191A48", "#9EA0D6", "rgba(255,255,255,.20)", "#D4D5F5", "#F1F1FF"),
   theme("tai-qing-lan", "酞青蓝", "铜酞青", "#012772", "#8FAEE8", "rgba(255,255,255,.22)", "#CBDBFA", "#EFF4FF"),
+  theme("fruit-grove", "果园暮光", "通关水果乐园解锁", "#FFF1D6", "#E0A86A", "rgba(120,70,20,.18)", "#8A4B1A", "#4A2A12", { unlock: { challengeTheme: "fruit", hint: "完成水果乐园全部关卡解锁" } }),
+  theme("nebula-night", "星云夜航", "通关太空旅行解锁", "#16122C", "#8B7CFF", "rgba(255,255,255,.16)", "#D7CFFF", "#F4F0FF", { unlock: { challengeTheme: "space", hint: "完成太空旅行全部关卡解锁" } }),
 ];
 
 function getBoardTheme(id) { return BOARD_THEMES.find((item) => item.id === id) || BOARD_THEMES.find((item) => item.id === DEFAULT_BOARD_THEME_ID); }

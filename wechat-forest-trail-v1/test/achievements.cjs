@@ -8,9 +8,9 @@ const { PuzzlePipeline } = require("../core/puzzle/PuzzlePipeline");
 const { SingleBoardRenderer } = require("../core/SingleBoardRenderer");
 const { CLOCK_TIERS } = require("../core/modes/ModeCatalog");
 
-// 1. 图鉴结构：首发 24 枚、7 个类别都有徽章、只开放铜/银、ID 唯一、每枚都有方向提示。
-assert.strictEqual(BADGES.length, 24);
-assert.strictEqual(new Set(BADGES.map((badge) => badge.id)).size, 24);
+// 1. 图鉴结构：首发 27 枚、8 个类别都有徽章、只开放铜/银、ID 唯一、每枚都有方向提示。
+assert.strictEqual(BADGES.length, 27);
+assert.strictEqual(new Set(BADGES.map((badge) => badge.id)).size, 27);
 for (const badge of BADGES) {
   assert.ok(CATEGORIES[badge.category], `${badge.id} 类别未知`);
   assert.ok(badge.hint && badge.name && badge.icon, `${badge.id} 缺少展示字段`);
@@ -19,7 +19,7 @@ for (const badge of BADGES) {
 }
 assert.strictEqual(LAUNCH_MAX_TIER, "silver");
 assert.ok(Object.keys(CATEGORIES).every((category) => BADGES.some((badge) => badge.category === category)));
-for (const name of ["初次连线", "数字启程", "第一颗星", "开始记忆", "一笔不错", "完美棋盘", "快手连线", "闪电数字", "无误连线", "撤回绝缘体", "冷静到底", "速度大师", "淡影行者", "过目不忘", "闪现捕手", "短忆高手", "盲连专家", "记忆耐力", "连续专注", "记忆连胜", "一周不忘", "今日签到", "每日三星", "终极记忆者"]) assert.ok(BADGES.some((badge) => badge.name === name), `缺少首发徽章：${name}`);
+for (const name of ["初次连线", "数字启程", "第一颗星", "开始记忆", "一笔不错", "完美棋盘", "快手连线", "闪电数字", "无误连线", "撤回绝缘体", "冷静到底", "速度大师", "淡影行者", "过目不忘", "闪现捕手", "短忆高手", "盲连专家", "记忆耐力", "连续专注", "记忆连胜", "一周不忘", "今日签到", "每日三星", "果园丰收", "星云航程", "主题收藏家", "终极记忆者"]) assert.ok(BADGES.some((badge) => badge.name === name), `缺少首发徽章：${name}`);
 assert.ok(MEMORY_BASE_BADGES.every((id) => badgeById(id)?.category === "memory"));
 
 // 2. 等级评估：累计值决定当前档与下一档剩余；一次性徽章只有铜牌。
@@ -170,7 +170,7 @@ const createGame = () => new ForestTrailMiniGame({}, [], { progress: new Progres
 const tap = (game, x, y) => game.handleStart({ touches: [{ clientX: x, clientY: y }] });
 {
   const game = createGame();
-  assert.deepStrictEqual(game.view().badgeSummary, { unlocked: 0, total: 24, title: null });
+  assert.deepStrictEqual(game.view().badgeSummary, { unlocked: 0, total: 27, title: null });
   game.startedAt = Date.now() - 5000;
   for (const cell of game.current.solution) game.moveTo(cell);
   const summary = game.completionSummary;
@@ -183,7 +183,7 @@ const tap = (game, x, y) => game.handleStart({ touches: [{ clientX: x, clientY: 
   game.renderer.controls.viewBadges = { x: 0, y: 0, width: 10, height: 10 };
   tap(game, 5, 5);
   assert.strictEqual(game.view().badgesVisible, true);
-  assert.strictEqual(game.view().badgeCollection.badges.length, 24);
+  assert.strictEqual(game.view().badgeCollection.badges.length, 27);
   assert.ok(game.view().badgeCollection.badges.find((badge) => badge.id === "first-link").tier === "bronze");
   assert.ok(game.view().badgeCollection.badges.find((badge) => badge.id === "blind-expert").tier === null);
   game.renderer.controls.badgeTabs = [{ id: "titles", x: 0, y: 0, width: 10, height: 10 }];
@@ -261,11 +261,11 @@ const tap = (game, x, y) => game.handleStart({ touches: [{ clientX: x, clientY: 
   const view = { ...game.view(snapshot), mode: "standard", clockTiers: Object.values(CLOCK_TIERS), weatherEnabled: false, badgesVisible: true, badgePage: "badges", badgeCollection: game.badgeCollection() };
   renderer.render(snapshot, view);
   assert.ok(renderer.controls.badges, "头部应有成就入口");
-  assert.ok(text.includes("🏅 成就 0/24"));
+  assert.ok(text.includes("🏅 成就 0/27"));
   assert.ok(renderer.controls.badgesClose && renderer.controls.badgeTabs?.length === 3);
   assert.ok(text.includes("成就") && text.includes("徽章图鉴") && text.includes("我的称号") && text.includes("统计数据"));
   assert.ok(text.includes("初次连线") && text.includes("🔒"), "锁定徽章显示锁图标");
-  assert.ok(renderer.controls.badgePageNext, "24 枚需要翻页");
+  assert.ok(renderer.controls.badgePageNext, "27 枚需要翻页");
   text.length = 0;
   renderer.render(snapshot, { ...view, badgePage: "titles" });
   assert.ok(renderer.controls.badgeTitles?.length === TITLES.length);

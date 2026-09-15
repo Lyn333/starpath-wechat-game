@@ -74,8 +74,11 @@
       "challenge",
       "clock"
     ],
-    "completionEffect": {
-      "type": "canvas-fireworks-particles",
+      "completionEffect": {
+      "type": "canvas-themed-particles",
+      "default": "fireworks",
+      "challengeFruit": "harvest",
+      "challengeSpace": "nebula",
       "bursts": 3,
       "particles": 66,
       "durationMs": 2400
@@ -128,7 +131,13 @@
         "zhe-shi": "#612405",
         "mo-hei": "#090B0C",
         "hua-qing": "#191A48",
-        "tai-qing-lan": "#012772"
+        "tai-qing-lan": "#012772",
+        "fruit-grove": "#FFF1D6",
+        "nebula-night": "#16122C"
+      },
+      "rewardSkins": {
+        "fruit-grove": "complete-all-fruit-challenge-levels",
+        "nebula-night": "complete-all-space-challenge-levels"
       },
       "note": "Hex values printed on the colour cards; 肽白 card has no printed value and was pixel-sampled. All themes retain the original green path gradient"
     },
@@ -206,7 +215,7 @@
         "core/achievements/BadgeCatalog.js",
         "core/achievements/AchievementTracker.js"
       ],
-      "launchBadges": 24,
+      "launchBadges": 27,
       "categories": [
         "starter",
         "speed",
@@ -214,6 +223,7 @@
         "memory",
         "streak",
         "daily",
+        "challenge",
         "ultimate"
       ],
       "openTiers": [
@@ -224,7 +234,7 @@
         "gold",
         "diamond"
       ],
-      "titles": 7,
+      "titles": 8,
       "entry": "top-right-badges-button",
       "pages": [
         "badges",
@@ -237,7 +247,7 @@
         "daily-once-per-date",
         "streak-break-keeps-best"
       ],
-      "memoryBadgesLockedUntilMemoryMode": true
+      "memoryBadgesLockedUntilMemoryMode": false
     }
   },
   "clockBonusesSeconds": {

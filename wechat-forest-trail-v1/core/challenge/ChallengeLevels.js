@@ -29,14 +29,23 @@ const SPACE_ICONS = {
 
 function rc(r, c) { return { row: r - 1, col: c - 1 }; }
 
-function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, showTargetName = false, targetMs, threeStarMs, icons, seq, blocked = [] }) {
+const REWARD_SKINS = { fruit: "fruit-grove", space: "nebula-night" };
+
+const FRUIT_CATEGORIES = [
+  { id: "sweet", label: "甜", color: "#FF6B8A", names: ["苹果", "草莓", "樱桃"] },
+  { id: "sour", label: "酸", color: "#FFD35A", names: ["香蕉", "橙子", "柠檬"] },
+  { id: "aroma", label: "果香", color: "#9B7CFF", names: ["葡萄", "蓝莓", "桃子"] },
+  { id: "tropical", label: "热带", color: "#45B9A2", names: ["西瓜", "菠萝", "猕猴桃"] },
+];
+
+function build({ id, theme, index, title, gridSize, difficulty, previewMs, hidden, showTargetName = false, targetMs, threeStarMs, icons, seq, blocked = [], categories = [] }) {
   const [rows, cols] = gridSize.split("x").map(Number);
   const waypoints = seq.map(([name, r, c], position) => ({ number: position + 1, cell: rc(r, c), icon: icons[name] || "●", name }));
   return {
     id, theme, index, title, gridSize, rows, cols, difficulty,
     sourceKind: "challenge", requireFullCoverage: false, walls: [],
     blockedCells: blocked.map(([r, c]) => rc(r, c)),
-    waypoints, previewMs, hidden, showTargetName, targetMs, threeStarMs,
+    waypoints, previewMs, hidden, showTargetName, targetMs, threeStarMs, categories,
   };
 }
 
@@ -60,6 +69,7 @@ const CHALLENGE_LEVELS = [
     id: "challenge-fruit-4", theme: "fruit", index: 4, title: "甜酸分类挑战", gridSize: "8x8", difficulty: "hard",
     previewMs: 6000, hidden: true, targetMs: 90000, threeStarMs: 70000, icons: FRUIT_ICONS,
     seq: [["苹果", 1, 1], ["草莓", 2, 5], ["樱桃", 4, 8], ["香蕉", 8, 2], ["橙子", 6, 6], ["柠檬", 3, 3], ["葡萄", 1, 7], ["蓝莓", 7, 8], ["桃子", 5, 2], ["西瓜", 8, 7], ["菠萝", 4, 4], ["猕猴桃", 6, 1]],
+    categories: FRUIT_CATEGORIES,
   }),
   build({
     id: "challenge-fruit-5", theme: "fruit", index: 5, title: "丰收终章", gridSize: "8x8", difficulty: "hard",
@@ -100,7 +110,40 @@ const LEVELS_BY_ID = new Map(CHALLENGE_LEVELS.map((level) => [level.id, level]))
 function getChallengeLevel(id) { return LEVELS_BY_ID.get(id) || null; }
 
 function challengeThemeList() {
-  return THEMES.map((theme) => ({ ...theme, levels: CHALLENGE_LEVELS.filter((level) => level.theme === theme.id) }));
+  return THEMES.map((theme) => ({ ...theme, levels: CHALLENGE_LEVELS.filter((level) => level.theme === theme.id), skinId: REWARD_SKINS[theme.id] }));
+}
+
+function challengeRewardProgress(completed = {}, stars = {}) {
+  return THEMES.map((theme) => {
+    const levels = CHALLENGE_LEVELS.filter((level) => level.theme === theme.id);
+    const cleared = levels.filter((level) => completed[level.id]).length;
+    const starCount = levels.reduce((sum, level) => sum + Math.max(0, Math.min(3, Number(stars[level.id]) || 0)), 0);
+    return {
+      id: theme.id, label: theme.label, icon: theme.icon, skinId: REWARD_SKINS[theme.id],
+      cleared, total: levels.length, stars: starCount, maxStars: levels.length * 3,
+      complete: cleared === levels.length, perfect: starCount === levels.length * 3,
+    };
+  });
+}
+
+function isRewardSkinUnlocked(skinId, completed = {}) {
+  const theme = THEMES.find((item) => REWARD_SKINS[item.id] === skinId);
+  if (!theme) return true;
+  return challengeRewardProgress(completed).find((item) => item.id === theme.id)?.complete === true;
+}
+
+function challengeRhythmView(level, snapshot = {}) {
+  if (!level?.categories?.length) return null;
+  const next = snapshot.nextWaypoint || 1;
+  const groups = level.categories.map((category) => {
+    const numbers = level.waypoints.filter((waypoint) => category.names.includes(waypoint.name)).map((waypoint) => waypoint.number);
+    return {
+      id: category.id, label: category.label, color: category.color, names: category.names,
+      cells: level.waypoints.filter((waypoint) => category.names.includes(waypoint.name)).map((waypoint) => waypoint.cell),
+      total: numbers.length, found: numbers.filter((number) => number < next).length, current: numbers.includes(next),
+    };
+  });
+  return { active: true, groups, current: groups.find((group) => group.current) || null };
 }
 
 // 校验：图案顺序编号连续、坐标合法且互不重叠、不与障碍重叠；障碍合法且互不重叠。
@@ -127,4 +170,4 @@ function validateChallengeLevel(level) {
   return true;
 }
 
-module.exports = { CHALLENGE_LEVELS, THEMES, getChallengeLevel, challengeThemeList, validateChallengeLevel };
+module.exports = { CHALLENGE_LEVELS, THEMES, REWARD_SKINS, FRUIT_CATEGORIES, getChallengeLevel, challengeThemeList, challengeRewardProgress, isRewardSkinUnlocked, challengeRhythmView, validateChallengeLevel };

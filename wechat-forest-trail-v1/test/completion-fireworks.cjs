@@ -1,5 +1,5 @@
 const assert = require("assert");
-const { FIREWORK_DURATION_MS, createFireworks, drawFireworks, particleFrame } = require("../core/effects/CompletionFireworks");
+const { FIREWORK_DURATION_MS, createFireworks, createHarvest, createNebula, createCompletionEffect, drawFireworks, particleFrame } = require("../core/effects/CompletionFireworks");
 
 const effect = createFireworks(390, 844, 1000);
 assert.strictEqual(effect.duration, FIREWORK_DURATION_MS);
@@ -25,4 +25,18 @@ assert.ok(operations.includes("arc"));
 assert.ok(operations.includes("stroke"));
 assert.strictEqual(context.globalAlpha, 1);
 assert.strictEqual(drawFireworks(context, effect, 1000 + FIREWORK_DURATION_MS), false);
+
+const harvest = createHarvest(390, 844, 2000);
+assert.strictEqual(harvest.kind, "harvest");
+assert.ok(harvest.particles.length >= 40);
+assert.strictEqual(drawFireworks(context, harvest, 2300), true);
+assert.strictEqual(drawFireworks(context, harvest, 2000 + FIREWORK_DURATION_MS), false);
+
+const nebula = createNebula(390, 844, 3000);
+assert.strictEqual(nebula.kind, "nebula");
+assert.ok(nebula.particles.length >= 48);
+assert.strictEqual(drawFireworks(context, nebula, 3300), true);
+assert.strictEqual(createCompletionEffect(390, 844, 1, "harvest").kind, "harvest");
+assert.strictEqual(createCompletionEffect(390, 844, 1, "nebula").kind, "nebula");
+assert.strictEqual(createCompletionEffect(390, 844, 1, "fireworks").kind, "fireworks");
 console.log("PASS completion-fireworks");

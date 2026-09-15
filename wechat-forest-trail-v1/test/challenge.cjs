@@ -1,5 +1,5 @@
 const assert = require("assert");
-const { CHALLENGE_LEVELS, THEMES, getChallengeLevel, challengeThemeList, validateChallengeLevel } = require("../core/challenge/ChallengeLevels");
+const { CHALLENGE_LEVELS, THEMES, FRUIT_CATEGORIES, getChallengeLevel, challengeThemeList, challengeRewardProgress, challengeRhythmView, validateChallengeLevel } = require("../core/challenge/ChallengeLevels");
 const { ChallengeEngine } = require("../core/challenge/ChallengeEngine");
 const { SingleBoardRenderer } = require("../core/SingleBoardRenderer");
 const { ForestTrailMiniGame } = require("../core/GameFlow");
@@ -25,6 +25,21 @@ const { MemoryStorageAdapter } = require("../core/platform/StorageAdapter");
   assert.strictEqual(getChallengeLevel("challenge-space-5").blockedCells.length, 10);
   assert.strictEqual(getChallengeLevel("challenge-fruit-1").waypoints[0].icon, "🍎");
   assert.strictEqual(getChallengeLevel("challenge-space-1").waypoints[0].icon, "🚀");
+  const fruit4 = getChallengeLevel("challenge-fruit-4");
+  assert.strictEqual(fruit4.categories.length, 4);
+  assert.deepStrictEqual(fruit4.categories.map((item) => item.label), FRUIT_CATEGORIES.map((item) => item.label));
+  const rhythm = challengeRhythmView(fruit4, { nextWaypoint: 1 });
+  assert.strictEqual(rhythm.groups.length, 4);
+  assert.strictEqual(rhythm.current.label, "甜");
+  assert.strictEqual(rhythm.groups[0].current, true);
+  const afterSweet = challengeRhythmView(fruit4, { nextWaypoint: 4 });
+  assert.strictEqual(afterSweet.current.label, "酸");
+  assert.strictEqual(afterSweet.groups[0].found, 3);
+  const rewards = challengeRewardProgress({ "challenge-fruit-1": true, "challenge-fruit-2": true }, { "challenge-fruit-1": 3, "challenge-fruit-2": 2 });
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").cleared, 2);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").stars, 5);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").complete, false);
+  assert.strictEqual(rewards.find((item) => item.id === "fruit").skinId, "fruit-grove");
   // 校验函数应能抓出错误数据。
   assert.throws(() => validateChallengeLevel({ id: "bad", rows: 6, cols: 6, blockedCells: [], waypoints: [{ number: 1, cell: { row: 0, col: 0 }, name: "a" }, { number: 3, cell: { row: 1, col: 1 }, name: "b" }] }));
 }
@@ -101,6 +116,7 @@ const { MemoryStorageAdapter } = require("../core/platform/StorageAdapter");
   assert.ok(renderer.controls.challengeClose, "应有关闭按钮热区");
   assert.strictEqual(renderer.controls.challengeLevels[0].id, "challenge-fruit-1");
   for (const label of ["关卡挑战", "🍎 水果乐园", "🚀 太空旅行", "第1关 · 果园起步", "第5关 · 穿越星云"]) assert.ok(texts.includes(label), `弹窗缺少文案：${label}`);
+  assert.ok(texts.some((value) => value.includes("集齐主题关卡解锁奖励皮肤")), "弹窗应说明皮肤解锁");
 
   // 棋盘按图标绘制（含障碍格的关卡不应报错）。
   const level = getChallengeLevel("challenge-space-4");
@@ -189,6 +205,77 @@ const { MemoryStorageAdapter } = require("../core/platform/StorageAdapter");
   assert.ok(texts.includes("🍌"), "预览阶段应显示全部图案");
   assert.ok(texts.some((t) => t.includes("记住图案位置")), "预览阶段状态条应显示倒计时");
   delete global.wx;
+}
+
+// 7. 水果第 4 关分类节奏光带：预览时绘制分类标签；隐藏时状态条带上当前分类且不绘制未点选图案。
+{
+  global.wx = { getWindowInfo: () => ({ windowWidth: 390, windowHeight: 844, pixelRatio: 1 }) };
+  const texts = [];
+  const fills = [];
+  const target = { setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, stroke() {}, fill() { fills.push(this.fillStyle); }, arc() {}, quadraticCurveTo() {}, rect() {}, strokeText() {}, createLinearGradient() { return { addColorStop() {} }; }, measureText(v) { return { width: String(v).length * 7 }; }, fillText(v) { texts.push(String(v)); } };
+  const ctx = new Proxy(target, { get: (o, p) => (p in o ? o[p] : () => {}), set: (o, p, v) => { o[p] = v; return true; } });
+  const renderer = new SingleBoardRenderer({ getContext: () => ctx });
+  const level = getChallengeLevel("challenge-fruit-4");
+  renderer.setLevel(level);
+  const snapshot = { status: "idle", path: [], nextWaypoint: 1, moves: 0, errors: 0, combo: 0, maxCombo: 0, hintCells: [], totalWaypoints: level.waypoints.length };
+  const rhythm = challengeRhythmView(level, snapshot);
+  renderer.drawBoard(snapshot, { boardTheme: undefined, time: "0:00", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: false, previewRemainingMs: 4000, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false }, challengeRhythm: rhythm });
+  for (const label of ["甜", "酸", "果香", "热带"]) assert.ok(texts.includes(label), `节奏光带缺少分类：${label}`);
+  assert.ok(texts.includes("🍎"), "预览时应绘制当前分类图案");
+  texts.length = 0;
+  renderer.drawBoard(snapshot, { boardTheme: undefined, time: "0:10", points: 0, clockActive: false, status: { currentWaypoint: 0, totalWaypoints: level.waypoints.length, errors: 0, combo: 0, bestMs: null }, challengeMemory: { active: true, hidden: true, previewRemainingMs: 0, revealing: false, currentIcon: "🍎", currentName: "苹果", showName: false }, challengeRhythm: rhythm });
+  assert.ok(!texts.includes("🍎"), "隐藏时不应泄露未点选图案位置");
+  assert.ok(texts.some((t) => t.includes("找出") && t.includes("甜") && t.includes("🍎")), "隐藏态状态条应提示当前分类");
+  delete global.wx;
+}
+
+// 8. GameFlow：水果关通关播丰收特效，太空关播星云特效；记忆关计入 hidden 成就；集齐主题解锁皮肤。
+{
+  const makeGame = (rendererMock, progress) => new ForestTrailMiniGame({}, [], {
+    progress: progress || new ProgressStore({ storage: new MemoryStorageAdapter() }),
+    renderer: rendererMock,
+    sound: new Proxy({}, { get: () => () => {} }),
+    leaderboard: { initialize: () => Promise.resolve(true), status: () => ({ friend: { text: "" }, global: { text: "" } }), submitCompletion: () => Promise.resolve(true) },
+  });
+  const rendererMock = { setLevel() {}, render() {}, resize() {}, hit() { return false; }, toCell() { return null; }, startCompletionFireworks(startedAt, kind) { this.kind = kind; this.completionFireworks = { startedAt, kind }; }, clearCompletionFireworks() { this.completionFireworks = null; }, drawCompletionFireworks() { return false; }, controls: {}, friendBoardCanvasSize() { return {}; } };
+
+  const fruit = makeGame(rendererMock);
+  fruit.startChallenge("challenge-fruit-1");
+  fruit.startedAt = Date.now() - 1000;
+  for (const waypoint of fruit.current.waypoints) fruit.moveTo(waypoint.cell);
+  assert.strictEqual(rendererMock.kind, "harvest", "水果关通关应播放丰收特效");
+  fruit.destroy();
+
+  const space = makeGame(rendererMock);
+  space.startChallenge("challenge-space-1");
+  space.startedAt = Date.now() - 1000;
+  for (const waypoint of space.current.waypoints) space.moveTo(waypoint.cell);
+  assert.strictEqual(rendererMock.kind, "nebula", "太空关通关应播放星云特效");
+  space.destroy();
+
+  const memory = makeGame(rendererMock);
+  memory.startChallenge("challenge-fruit-3");
+  memory.challengePreviewUntil = Date.now() - 1;
+  memory.startedAt = Date.now() - 2000;
+  for (const waypoint of memory.current.waypoints) memory.moveTo(waypoint.cell);
+  assert.ok(memory.progress.achievementState().stats.memoryClears >= 1, "记忆关应计入记忆成就");
+  assert.strictEqual(memory.progress.achievementState().unlocked["memory-start"]?.tier, "bronze");
+  memory.destroy();
+
+  const storage = new MemoryStorageAdapter();
+  const progress = new ProgressStore({ storage });
+  assert.strictEqual(progress.isBoardThemeUnlocked("fruit-grove"), false);
+  assert.strictEqual(progress.setBoardTheme("fruit-grove"), false);
+  for (const id of ["challenge-fruit-1", "challenge-fruit-2", "challenge-fruit-3", "challenge-fruit-4", "challenge-fruit-5"]) {
+    const level = getChallengeLevel(id);
+    progress.markComplete(level, { moves: level.waypoints.length, elapsedMs: 1000, errors: 0, undos: 0, hints: 0, stars: 3, mode: "challenge" });
+  }
+  assert.strictEqual(progress.challengeProgress().find((item) => item.id === "fruit").complete, true);
+  assert.strictEqual(progress.isBoardThemeUnlocked("fruit-grove"), true);
+  assert.strictEqual(progress.setBoardTheme("fruit-grove"), true);
+  assert.strictEqual(progress.boardTheme(), "fruit-grove");
+  assert.strictEqual(progress.achievementState().unlocked["fruit-harvest"]?.tier, "silver");
+  assert.strictEqual(progress.isBoardThemeUnlocked("nebula-night"), false);
 }
 
 console.log("PASS challenge");

@@ -1,6 +1,6 @@
 const { TrailEngine } = require("./TrailEngine");
 const { ChallengeEngine } = require("./challenge/ChallengeEngine");
-const { challengeThemeList } = require("./challenge/ChallengeLevels");
+const { challengeThemeList, challengeRhythmView } = require("./challenge/ChallengeLevels");
 const { SingleBoardRenderer } = require("./SingleBoardRenderer");
 const { ProgressStore } = require("./ProgressStore");
 const { SoundFx } = require("./SoundFx");
@@ -120,7 +120,8 @@ class ForestTrailMiniGame {
   startCompletionEffects() {
     if (!this.renderer.startCompletionFireworks) return;
     this.stopCompletionEffects();
-    this.renderer.startCompletionFireworks(Date.now());
+    const kind = this.mode === "challenge" && this.current?.theme === "fruit" ? "harvest" : this.mode === "challenge" && this.current?.theme === "space" ? "nebula" : "fireworks";
+    this.renderer.startCompletionFireworks(Date.now(), kind);
     const animate = () => {
       if (this.completionDismissed || this.engine?.getSnapshot().status !== "completed" || !this.renderer.completionFireworks) {
         this.stopCompletionEffects();
@@ -184,13 +185,18 @@ class ForestTrailMiniGame {
         const stats = this.completionStats(snapshot);
         const breakdown = scoreBreakdown(level, stats);
         const stars = this.mode === "challenge" ? challengeStars(level, stats) : starsFor(level, stats);
+        const rewardsBefore = this.progress.challengeProgress?.() || [];
         this.completionSummary = {
           ...this.progress.markComplete(level, {
             ...stats, moves: snapshot.moves, points: breakdown.total, stars,
             mode: this.mode, parTimeMs: breakdown.parTimeMs, hintTiers: [...this.hintTiers], lastWaypointsClean: this.lastWaypointsClean(snapshot),
+            memoryMode: this.mode === "challenge" && level.hidden ? "hidden" : null,
+            previewSeconds: this.mode === "challenge" && level.hidden ? Math.round((level.previewMs || 0) / 1000) : undefined,
           }),
           breakdown, stars, labels: completionLabels(level, stats), stats,
         };
+        const rewardsAfter = this.progress.challengeProgress?.() || [];
+        this.completionSummary.rewardUnlocks = rewardsAfter.filter((item, index) => item.complete && !rewardsBefore[index]?.complete).map((item) => ({ skinId: item.skinId, label: item.label, icon: item.icon }));
         this.completionSummary.nextGoals = this.nearestBadgeGoals();
         if (this.completionSummary.achievementEvents?.badges?.length) this.vibrate("short");
         if (stars === 3) { this.progress.rewardHints?.(PERFECT_CLEAR_REWARD); this.completionSummary.hintReward = PERFECT_CLEAR_REWARD; }
@@ -237,7 +243,7 @@ class ForestTrailMiniGame {
     return { unlocked: Object.keys(state.unlocked).length, total: BADGES.length, title: TITLES.find((title) => title.id === state.equippedTitle)?.name || null };
   }
 
-  // 徽章图鉴视图：24 枚徽章的名称 / 类别 / 当前等级 / 下一档进度 / 是否锁定。
+  // 徽章图鉴视图：徽章的名称 / 类别 / 当前等级 / 下一档进度 / 是否锁定。
   badgeCollection() {
     const state = this.progress.achievementState?.() || { unlocked: {}, titles: [], equippedTitle: null };
     const evaluations = this.progress.achievementEvaluations?.() || {};
@@ -292,14 +298,21 @@ class ForestTrailMiniGame {
   }
 
   challengeThemesView() {
-    return challengeThemeList().map((theme) => ({
-      id: theme.id, label: theme.label, icon: theme.icon,
-      levels: theme.levels.map((level) => ({
-        id: level.id, index: level.index, title: level.title, gridSize: level.gridSize,
-        stars: this.progress.starsFor?.(level.id) || 0,
-        bestMs: this.progress.getCompletionSummary?.(level)?.best?.elapsedMs || null,
-      })),
-    }));
+    const rewards = this.progress.challengeProgress?.() || [];
+    return challengeThemeList().map((theme) => {
+      const reward = rewards.find((item) => item.id === theme.id) || {};
+      return {
+        id: theme.id, label: theme.label, icon: theme.icon,
+        cleared: reward.cleared || 0, total: reward.total || theme.levels.length,
+        stars: reward.stars || 0, maxStars: reward.maxStars || theme.levels.length * 3,
+        complete: Boolean(reward.complete), skinUnlocked: Boolean(reward.complete), skinId: theme.skinId,
+        levels: theme.levels.map((level) => ({
+          id: level.id, index: level.index, title: level.title, gridSize: level.gridSize,
+          stars: this.progress.starsFor?.(level.id) || 0,
+          bestMs: this.progress.getCompletionSummary?.(level)?.best?.elapsedMs || null,
+        })),
+      };
+    });
   }
 
   challengeThemeLabel(themeId) {
@@ -363,6 +376,11 @@ class ForestTrailMiniGame {
     };
   }
 
+  challengeRhythmView(snapshot) {
+    if (this.mode !== "challenge") return null;
+    return challengeRhythmView(this.current, snapshot);
+  }
+
   nextAfterCompletion() {
     if (this.mode === "challenge") return this.openChallengeSelect();
     return this.selectStandard();
@@ -404,6 +422,7 @@ class ForestTrailMiniGame {
       challengeThemes: this.challengeSelectVisible ? this.challengeThemesView() : null,
       challengeTitle: this.mode === "challenge" ? `${this.challengeThemeLabel(this.current?.theme)} · ${this.current?.title || ""}` : null,
       challengeMemory: this.challengeMemoryView(snapshot),
+      challengeRhythm: this.challengeRhythmView(snapshot),
       infoVisible: this.infoVisible,
       themePickerVisible: this.themePickerVisible,
       friendBoardVisible: Boolean(this.friendBoardVisible),
@@ -419,6 +438,7 @@ class ForestTrailMiniGame {
       badgeSummary: this.badgeSummary(),
       badgeLookup: (id) => { const badge = badgeById(id); return badge ? { id: badge.id, name: badge.name, icon: badge.icon, shape: CATEGORIES[badge.category].shape, color: CATEGORIES[badge.category].color } : null; },
       boardTheme: this.progress.boardTheme?.() || DEFAULT_BOARD_THEME_ID,
+      boardThemeUnlocks: this.progress.boardThemeUnlocks?.() || {},
       weatherEnabled: this.weatherEnabled !== false,
       clockEnded: this.mode === "clock-ended" && Boolean(this.clockResult),
       clockTier: tier,
@@ -570,7 +590,11 @@ class ForestTrailMiniGame {
     const controls = this.renderer.controls;
     if (this.themePickerVisible) {
       const selectedTheme = controls.themeOptions?.find((item) => this.renderer.hit(item, point));
-      if (selectedTheme) { this.progress.setBoardTheme?.(selectedTheme.id); this.themePickerVisible = false; this.sound.tap(); return this.render(); }
+      if (selectedTheme) {
+        if (this.progress.setBoardTheme?.(selectedTheme.id)) { this.themePickerVisible = false; this.sound.tap(); return this.render(); }
+        this.sound.tap();
+        return this.render();
+      }
       if (this.renderer.hit(controls.themeClose, point)) { this.themePickerVisible = false; this.sound.tap(); return this.render(); }
       return;
     }
